@@ -7,6 +7,7 @@ download_source() {
     git init
     git remote add origin https://github.com/phucbui95/MotorbikeGeneration
     git branch --set-upstream-to=origin/master master
+    git reset --hard HEAD
     git pull
 }
 
