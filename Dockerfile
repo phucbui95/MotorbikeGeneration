@@ -1,17 +1,18 @@
-FROM python:3.7-slim-buster
+FROM vastai/pytorch
 
-# Install gcc
 RUN apt-get update
-RUN apt-get install -y libpq-dev libc-dev gcc
+RUN apt-get install -y libsm6 libxext6 libxrender-dev
 
 # Install python libraries
 COPY requirements.txt /requirements.txt
 RUN pip install -r /requirements.txt
 
-RUN apt-get install -y postgresql-client
+RUN apt-get install -y zip
+RUN mkdir -p /root/.kaggle/
+ADD kaggle.json /root/.kaggle/
 
 # Copy source code
-COPY . /app
+COPY . /app/MotorbikeGeneration
 WORKDIR /app
 
-ENTRYPOINT ["./run_all.sh"]
+ENTRYPOINT ["/bin/bash"]

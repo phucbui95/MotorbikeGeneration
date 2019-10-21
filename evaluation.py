@@ -18,7 +18,7 @@ def evaluation(submission_file):
     
     os.mkdir('tmp')
     
-    with zipfile.ZipFile(path_to_zip_file, 'r') as zip_ref:
+    with zipfile.ZipFile(submission_file, 'r') as zip_ref:
         zip_ref.extractall('tmp')
         
     img_paths = glob('tmp/*.*')
