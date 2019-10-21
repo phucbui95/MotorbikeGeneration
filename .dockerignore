@@ -17,3 +17,6 @@ resized_image/*
 submission/*
 tmp/*
 *.zip
+*.ipynb
+*.pth
+client/*

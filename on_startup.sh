@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 
-
-
 echo "==========================================="
 echo "Prepare data"
 
 download_source() {
     git init
     git remote add origin https://github.com/phucbui95/MotorbikeGeneration
+    git branch --set-upstream-to=origin/master master
     git pull
 }
 
@@ -22,17 +21,11 @@ download_preprocess() {
     cd $ROOT_DIR
 }
 
+download_source
+
 download_preprocess
 
-# Preprocessing data
-if test -f "$PREPROCESSED_DIR"; then
-    # download and unzip data
-    sh download.sh
-    echo "Preprocessing data"
-    python run_notebook Dataset.ipynb
-else
-    echo "Preprocessed data have already downloaded"
-fi
+sh download.sh
 
 
 

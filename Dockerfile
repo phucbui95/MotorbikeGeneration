@@ -12,7 +12,7 @@ RUN mkdir -p /root/.kaggle/
 ADD kaggle.json /root/.kaggle/
 
 # Copy source code
-COPY . /app/MotorbikeGeneration
+COPY . /app/
 WORKDIR /app
 
 ENTRYPOINT ["/bin/bash"]
