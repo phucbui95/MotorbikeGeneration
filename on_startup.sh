@@ -6,8 +6,14 @@ echo "Prepare data"
 download_source() {
     git init
     git remote add origin https://github.com/phucbui95/MotorbikeGeneration
-    git branch --set-upstream-to=origin/master master
-    git reset --hard HEAD
+    git add -A
+    git config --global user.email "you@example.com"
+    git commit -m "Backup"
+
+    git checkout -b working
+    git fetch --all
+    git branch --set-upstream-to=origin/master working
+    git reset --hard origin/master
     git pull
 }
 

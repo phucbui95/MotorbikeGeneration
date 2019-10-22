@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-DATA_DIR='./data'
-ROOT_DIR='.'
+ROOT_DIR=$(pwd)
+DATA_DIR=$ROOT_DIR/data
+PREPROCESSED_DIR=$DATA_DIR/resized128_image
+
+echo "Configure ROOT_DIR: $ROOT_DIR"
+echo "Configure DATA_DIR: $DATA_DIR"
 
 echo "Creating data folder..."
 
@@ -28,14 +32,15 @@ init_evaluation_scripts() {
         wget -O $EVALUATION_SCRIPT https://dl.challenge.zalo.ai/ZAC2019_GAN/evaluation_script.zip
     fi
 
+    cd $DATA_DIR
     unzip -o evaluation_script.zip > /dev/null
-
     echo "Coping script for evaluation_script"
     cd ..
     cp -r $DATA_DIR/evaluation_script/client $ROOT_DIR
 }
+echo "Result $PREPROCESSED_DIR"
 
-if test -f "$PREPROCESSED_DIR"; then
+if [ -d $PREPROCESSED_DIR ]; then
     echo "Dataset already existed"
 else
     init_training_dataset
