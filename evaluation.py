@@ -23,6 +23,8 @@ def evaluation(submission_file):
         
     img_paths = glob('tmp/*.*')
     
+    img_paths = img_paths[:10]
+    
     mifid = MIFID(model_path='./client/motorbike_classification_inception_net_128_v4_e36.pb', 
       public_feature_path='./client/public_feature.npz')
     

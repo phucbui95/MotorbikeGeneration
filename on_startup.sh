@@ -3,6 +3,9 @@
 echo "==========================================="
 echo "Prepare data"
 
+install_tools() {
+    apt-get install -y wget
+}
 download_source() {
     git init
     git remote add origin https://github.com/phucbui95/MotorbikeGeneration
@@ -27,11 +30,13 @@ download_preprocess() {
     unzip -o -d resized128_image preprocesmotorbike.zip > /dev/null
     cd $ROOT_DIR
 }
-
+echo "Installing tools"
+install_tools
+echo "Fetching source code from resposities"
 download_source
-
+echo "Downloading files from kaggle dataset"
 download_preprocess
-
+echo "Downloading data"
 sh download.sh
 
 
