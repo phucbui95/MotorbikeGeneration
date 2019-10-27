@@ -8,6 +8,9 @@ from PIL import ImageOps, ImageEnhance
 from torchvision import transforms
 from torchvision.utils import save_image
 import random
+import datetime
+import functools
+import time
 
 
 def show_images(images, cols=1, titles=None):
@@ -37,24 +40,34 @@ def show_images(images, cols=1, titles=None):
     fig.set_size_inches(np.array(fig.get_size_inches()) * n_images)
     plt.show()
 
-def generate_img(netG,fixed_noise,fixed_aux_labels=None):
+
+def generate_img(netG, fixed_noise, fixed_aux_labels=None):
     if fixed_aux_labels is not None:
-        gen_image = netG(fixed_noise,fixed_aux_labels).to('cpu').clone().detach().squeeze(0)
+        gen_image = netG(fixed_noise, fixed_aux_labels).to(
+            'cpu').clone().detach().squeeze(0)
     else:
         gen_image = netG(fixed_noise).to('cpu').clone().detach().squeeze(0)
-    #denormalize
-    gen_image = gen_image*0.5 + 0.5
-    gen_image_numpy = gen_image.numpy().transpose(0,2,3,1)
+    # denormalize
+    gen_image = gen_image * 0.5 + 0.5
+    gen_image_numpy = gen_image.numpy().transpose(0, 2, 3, 1)
     return gen_image_numpy
 
-def show_generate_imgs(netG, fixed_noise, max_image=4, fixed_aux_labels=None):
-    gen_images_numpy = generate_img(netG,fixed_noise,fixed_aux_labels)
+
+def show_generate_imgs(netG, fixed_noise, 
+                       max_image=4, 
+                       fixed_aux_labels=None, 
+                       save_path=None):
+    gen_images_numpy = generate_img(netG, fixed_noise, fixed_aux_labels)
 
     fig = plt.figure(figsize=(25, 16))
     # display 10 images from each class
     for i, img in enumerate(gen_images_numpy[:max_image]):
         ax = fig.add_subplot(4, 8, i + 1, xticks=[], yticks=[])
         plt.imshow(img)
+    if save_path is not None:  
+        # save figure
+        fig.savefig(save_path)
+
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -91,11 +104,13 @@ def submission_generate_images(netG, n_images=10000, truncated=None,
     im_batch_size = 50
     nz = 120
 
-    if device:
+    if device is None:
         device = torch.device('cpu')
 
+    netG.to(device)
+
     if not os.path.exists('outputs/output_images'):
-        os.mkdir('outputs/output_images')
+        os.makedirs('outputs/output_images')
 
     for i_batch in range(0, n_images, im_batch_size):
         if truncated is not None:
@@ -142,6 +157,22 @@ def seed_everything():
     np.random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
 
+
 def get_device():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     return device
+
+
+def timer(func):
+    """Print the runtime of the decorated function"""
+
+    @functools.wraps(func)
+    def wrapper_timer(*args, **kwargs):
+        start_time = time.perf_counter()  # 1
+        value = func(*args, **kwargs)
+        end_time = time.perf_counter()  # 2
+        run_time = end_time - start_time  # 3
+        print(f"Finished {func.__name__!r} in {run_time:.4f} secs")
+        return value
+
+    return wrapper_timer

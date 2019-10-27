@@ -12,3 +12,4 @@ jupyter-contrib-nbextensions
 albumentations
 kaggle
 jupyter
+tensorboardX==1.9

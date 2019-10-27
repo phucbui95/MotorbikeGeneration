@@ -12,16 +12,19 @@ def evaluation(submission_file):
     import zipfile
     
     # remove output directory
-    if os.path.exists('tmp'):
-        print("Remove temp folder")
-        shutil.rmtree('tmp')
-    
-    os.mkdir('tmp')
-    
-    with zipfile.ZipFile(submission_file, 'r') as zip_ref:
-        zip_ref.extractall('tmp')
-        
-    img_paths = glob('tmp/*.*')
+    if not os.path.isdir(submission_file):
+        if os.path.exists('tmp'):
+            print("Remove temp folder")
+            shutil.rmtree('tmp')
+
+        os.mkdir('tmp')
+
+        with zipfile.ZipFile(submission_file, 'r') as zip_ref:
+            zip_ref.extractall('tmp')
+        img_paths = glob('tmp/*.*')
+    else:
+        img_paths= glob(submission_file)
+        img_paths = [os.path.join(submission_file, f) for f in img_paths]
     
     img_paths = img_paths[:10]
     
