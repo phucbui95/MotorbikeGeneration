@@ -144,7 +144,7 @@ def submission_generate_images(netG, n_images=10000, truncated=None,
             else:
                 save_image(gen_images[i_image, :, :, :],
                            os.path.join(f'outputs/output_images',
-                                        f'image_{i_batch+i_image:05d}.png'))
+                                        f'{i_image}.png'))
     shutil.make_archive(f'outputs/images', 'zip', f'outputs/output_images')
 
 
