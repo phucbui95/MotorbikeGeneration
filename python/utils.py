@@ -112,6 +112,7 @@ def submission_generate_images(netG, n_images=10000, truncated=None,
     if not os.path.exists('outputs/output_images'):
         os.makedirs('outputs/output_images')
 
+    output_i = 0
     for i_batch in range(0, n_images, im_batch_size):
         if truncated is not None:
             flag = True
@@ -144,7 +145,8 @@ def submission_generate_images(netG, n_images=10000, truncated=None,
             else:
                 save_image(gen_images[i_image, :, :, :],
                            os.path.join(f'outputs/output_images',
-                                        f'{i_image}.png'))
+                                        f'{output_i}.png'))
+            output_i += 1
     shutil.make_archive(f'outputs/images', 'zip', f'outputs/output_images')
 
 
