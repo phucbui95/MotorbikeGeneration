@@ -14,6 +14,8 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms, utils
 from models import StyledGenerator, Discriminator
 
+from .s3_client import S3Client, S3Storage
+
 
 def requires_grad(model, flag=True):
     for p in model.parameters():
@@ -32,7 +34,6 @@ def sample_data(dataset, batch_size, image_size=4):
     dataset.resolution = image_size
     dataset.reload_data(image_size)
     loader = DataLoader(dataset, shuffle=True, batch_size=batch_size, num_workers=1)
-
     return loader
 
 
@@ -41,8 +42,22 @@ def adjust_lr(optimizer, lr):
         mult = group.get('mult', 1)
         group['lr'] = lr * mult
 
-def train(args, dataset, generator, discriminator, g_optimizer, d_optimizer):
-    step = int(math.log2(args.init_size)) - 2 #TODO: init size 64x64 ???
+def save(models, path, s3storage=None):
+    torch.save(models, path)
+    if s3storage is not None:
+        s3storage.send_async(path, prefix=None)
+    return path
+
+
+
+def train(args, dataset, generator, discriminator, g_optimizer, d_optimizer,
+          device=None,
+          s3storage=None):
+
+    if device is None:
+        device = torch.device('cpu')
+
+    step = int(math.log2(args.init_size)) - 2 # TODO: init size 64x64 ???
     resolution = 4 * 2 ** step
 
     #TODO: change here
@@ -97,16 +112,16 @@ def train(args, dataset, generator, discriminator, g_optimizer, d_optimizer):
             )
             data_loader = iter(loader)
 
-            torch.save(
-                {
+            path = f'checkpoint/train_step-{ckpt_step}.model'
+            models_state = {
                     'generator': generator.module.state_dict(),
                     'discriminator': discriminator.module.state_dict(),
                     'g_optimizer': g_optimizer.state_dict(),
                     'd_optimizer': d_optimizer.state_dict(),
                     'g_running': g_running.state_dict(),
-                },
-                f'checkpoint/train_step-{ckpt_step}.model',
-            )
+                }
+
+            save(models_state, path, s3storage)
 
             adjust_lr(g_optimizer, args.lr.get(resolution, 0.001))
             adjust_lr(d_optimizer, args.lr.get(resolution, 0.001))
@@ -190,8 +205,6 @@ def train(args, dataset, generator, discriminator, g_optimizer, d_optimizer):
             if i%10 == 0:
                 disc_loss_val = (real_predict + fake_predict).item()
 
-
-        # TODO not step until
         d_optimizer.step()
 
         if (i + 1) % n_critic == 0:
@@ -242,9 +255,15 @@ def train(args, dataset, generator, discriminator, g_optimizer, d_optimizer):
             )
 
         if (i + 1) % 10000 == 0:
-            torch.save(
-                g_running.state_dict(), f'checkpoint/{str(i + 1).zfill(6)}.model'
-            )
+            models_state = {
+                    'generator': generator.module.state_dict(),
+                    'discriminator': discriminator.module.state_dict(),
+                    'g_optimizer': g_optimizer.state_dict(),
+                    'd_optimizer': d_optimizer.state_dict(),
+                    'g_running': g_running.state_dict(),
+                }
+            path = f'checkpoint/{str(i + 1).zfill(6)}.model'
+            save(models_state, path, s3storage)
 
         state_msg = (
             f'Size: {4 * 2 ** step}; G: {gen_loss_val:.3f}; D: {disc_loss_val:.3f};'

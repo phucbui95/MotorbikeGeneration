@@ -20,3 +20,5 @@ tmp/*
 *.ipynb
 *.pth
 client/*
+models*
+result*

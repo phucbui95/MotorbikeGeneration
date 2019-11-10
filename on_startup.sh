@@ -30,6 +30,7 @@ download_preprocess() {
     unzip -o -d resized128_image preprocesmotorbike.zip > /dev/null
     cd $ROOT_DIR
 }
+
 echo "Installing tools"
 install_tools
 echo "Fetching source code from resposities"
@@ -38,6 +39,9 @@ echo "Downloading files from kaggle dataset"
 download_preprocess
 echo "Downloading data"
 sh download.sh
+
+echo "Starting jupyter notebook"
+nohup sh start_nb.sh &
 
 
 

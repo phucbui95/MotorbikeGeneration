@@ -13,6 +13,9 @@ RUN apt-get install -y zip wget
 RUN mkdir -p /root/.kaggle/
 ADD kaggle.json /root/.kaggle/
 
+# setup credentials for s3 access
+ADD keys/credentials /root/.aws/credentials
+
 # Copy source code
 COPY . /app/
 WORKDIR /app
