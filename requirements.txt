@@ -13,3 +13,4 @@ albumentations
 kaggle
 jupyter
 tensorboardX==1.9
+boto3

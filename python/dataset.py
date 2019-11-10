@@ -9,7 +9,7 @@ def get_transforms(image_size=128):
     std = 0.5, 0.5, 0.5
     transform1 = transforms.Compose([transforms.Resize(image_size)])
 
-    transform2 = transforms.Compose([transforms.RandomCrop(image_size),
+    transform2 = transforms.Compose([
                                      transforms.RandomHorizontalFlip(p=0.5),
                                      transforms.ToTensor(),
                                      transforms.Normalize(mean=mean, std=std),
@@ -69,7 +69,9 @@ IGNORE_IMAGE = [
 
 class MotorbikeDataset(Dataset):
     def __init__(self, path, transform1=None, transform2=None,
-                 ignore=IGNORE_IMAGE):
+                 ignore=None):
+        if ignore is None:
+            ignore = IGNORE_IMAGE
         self.path = path
         img_list = os.listdir(self.path)
         img_list = [i for i in img_list if i not in ignore]
@@ -90,7 +92,56 @@ class MotorbikeDataset(Dataset):
 
     def load_data(self, img_list):
         self.images = []
+        for idx, path in enumerate(img_list):
+            origin_img = Image.open(os.path.join(self.path, self.img_list[idx]))
+            img = origin_img.copy()
+            origin_img.close()
+            img = self.transform1(img)
+            self.images.append(img)
+        return self.images
 
+    def sample(self, n=5):
+        return [self.__getitem__(i) for i in range(n)]
+
+
+class MultipleResMotorbikeDS(Dataset):
+    def __init__(self, path,
+                 transform1=None,
+                 transform2=None,
+                 ignore=None,
+                 resolution=128):
+        if ignore is None:
+            ignore = IGNORE_IMAGE
+        self.path = path
+        self.resolution = resolution
+        img_list = os.listdir(self.path)
+        img_list = [i for i in img_list if i not in ignore]
+        self.img_list = img_list[:32]
+
+        if transform1 is None and transform2 is None:
+            self.transform1, self.transform2 = get_transforms()
+        else:
+            self.transform1 = transform1
+            self.transform2 = transform2
+        self.reload_data(resolution)
+
+    def __len__(self):
+        return len(self.img_list)
+
+    def __getitem__(self, idx):
+        img = self.images[idx]
+
+        if self.transform2 is not None:
+            img = self.transform2(img)
+        return img
+
+    def reload_data(self, resolution):
+        # update transformer
+        self.transform1, _ = get_transforms(resolution)
+        img_list = self.img_list
+        # reload all data
+        self.images = []
+        import gc; gc.collect()
         for idx, path in enumerate(img_list):
             origin_img = Image.open(os.path.join(self.path, self.img_list[idx]))
             img = origin_img.copy()
