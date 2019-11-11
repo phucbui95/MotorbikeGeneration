@@ -127,7 +127,7 @@ def upload_fnc(filename, prefix=None):
     s3 = S3Client()
     bucket_name = 'phucbb'
     s3.upload_file(bucket_name, filename, prefix=prefix)
-    print("DOne")
+    print("Uploaded model -> S3")
 
 class S3Storage:
     def __init__(self, name):

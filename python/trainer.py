@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms, utils
 from models import StyledGenerator, Discriminator
 
-from .s3_client import S3Client, S3Storage
+from s3_client import S3Client, S3Storage
 
 
 def requires_grad(model, flag=True):
