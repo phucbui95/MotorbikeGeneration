@@ -2,7 +2,7 @@ import os
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
-
+import pandas as pd
 
 def get_transforms(image_size=128):
     mean = 0.5, 0.5, 0.5
@@ -453,3 +453,78 @@ class MultipleResMotorbikeDS(Dataset):
 
     def sample(self, n=5):
         return [self.__getitem__(i) for i in range(n)]
+
+
+class MotorbikeWithLabelsDataset(Dataset):
+    def __init__(self, path, labels,
+                 transform1=None, transform2=None,
+                 ignore=None, in_memory=True):
+        if ignore is None:
+            ignore = IGNORE_IMAGE
+        self.path = path
+        img_list = os.listdir(self.path)
+        img_list = [i for i in img_list if i not in ignore]
+        self.img_list = img_list
+        self.transform1 = transform1
+        self.transform2 = transform2
+
+        get_fname = lambda x: '.'.join(x.split('.')[:-1])
+        label_path = labels
+        label_df = pd.read_csv(label_path)
+        label_df['image_id'] = label_df['image_id'].apply(get_fname)
+        label_df = label_df.set_index('image_id')
+        self.mapping_id_label = label_df['class'].to_dict()
+        self.in_memmory = in_memory
+        # filter the image list for safe
+        self.img_list = [i for i in self.img_list if get_fname(i) in
+                         self.mapping_id_label]
+
+        if self.in_memmory:
+            self.load_data(img_list)
+
+    def __len__(self):
+        return len(self.img_list)
+
+    def __getitem__(self, idx):
+        img_name = self.img_list[idx]
+        id = '.'.join(img_name.split('.')[:-1])
+        if self.in_memmory:
+            img = self.images[idx]
+        else:
+            origin_img = Image.open(os.path.join(self.path, self.img_list[idx]))
+            img = origin_img.copy()
+            origin_img.close()
+            img = self.transform1(img)
+
+        if self.transform2 is not None:
+            img = self.transform2(img)
+
+        return img, self.mapping_id_label[id]
+
+    def load_data(self, img_list):
+        self.images = []
+        for idx, path in enumerate(img_list):
+            origin_img = Image.open(os.path.join(self.path, self.img_list[idx]))
+            img = origin_img.copy()
+            origin_img.close()
+            img = self.transform1(img)
+            self.images.append(img)
+
+        return self.images
+
+    def sample(self, n=5):
+        return [self.__getitem__(i) for i in range(n)]
+
+if __name__ == '__main__':
+    tf1, tf2 = get_transforms(128)
+    ds = MotorbikeWithLabelsDataset('../data/resized128_image_fixed', '../data/label.csv',
+                                    tf1, tf2,
+                                    in_memory=False)
+
+    print(ds[1])
+    print(ds.img_list[1])
+    for i in range(len(ds)):
+        try:
+            _ = ds[i]
+        except:
+            print(f"{i}")
