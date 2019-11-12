@@ -473,6 +473,7 @@ class MotorbikeWithLabelsDataset(Dataset):
         label_df = pd.read_csv(label_path)
         label_df['image_id'] = label_df['image_id'].apply(get_fname)
         label_df = label_df.set_index('image_id')
+        self.class_dist = label_df['class'].value_counts().sort_index().values / float(len(label_df))
         self.mapping_id_label = label_df['class'].to_dict()
         self.in_memmory = in_memory
         # filter the image list for safe
@@ -509,8 +510,10 @@ class MotorbikeWithLabelsDataset(Dataset):
             origin_img.close()
             img = self.transform1(img)
             self.images.append(img)
-
         return self.images
+
+    def get_class_distributions(self):
+        return self.class_dist
 
     def sample(self, n=5):
         return [self.__getitem__(i) for i in range(n)]
@@ -520,11 +523,11 @@ if __name__ == '__main__':
     ds = MotorbikeWithLabelsDataset('../data/resized128_image_fixed', '../data/label.csv',
                                     tf1, tf2,
                                     in_memory=False)
-
-    print(ds[1])
-    print(ds.img_list[1])
-    for i in range(len(ds)):
-        try:
-            _ = ds[i]
-        except:
-            print(f"{i}")
+    print(ds.get_class_distributions())
+    # print(ds[1])
+    # print(ds.img_list[1])
+    # for i in range(len(ds)):
+    #     try:
+    #         _ = ds[i]
+    #     except:
+    #         print(f"{i}")
