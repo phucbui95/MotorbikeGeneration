@@ -41,8 +41,9 @@ echo "Downloading data"
 sh download.sh
 
 echo "Starting jupyter notebook"
+cd /app
 nohup sh start_nb.sh &
-
+nohup tensorboard --logdir=tensorboard_log &
 
 
 

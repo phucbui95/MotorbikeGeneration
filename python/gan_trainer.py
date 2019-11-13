@@ -250,7 +250,7 @@ def add_argments(arg_parser):
     arg_parser.add_argument('--ema', type=float, default=0.999)
 
     # Logging
-    arg_parser.add_argument('--logging_steps', type=int, default=2)
+    arg_parser.add_argument('--logging_steps', type=int, default=10)
     arg_parser.add_argument('--checkpoint_steps', type=int, default=20)
     arg_parser.add_argument('--sample_dir', type=str, default='sample')
     arg_parser.add_argument('--checkpoint_dir', type=str, default='checkpoint')
