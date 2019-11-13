@@ -22,3 +22,5 @@ tmp/*
 client/*
 models*
 result*
+sample/*
+tensorboard_log/*

@@ -240,6 +240,7 @@ def add_argments(arg_parser):
     arg_parser.add_argument('--feat_D', type=int, default=24)
 
     # Optimizer hyperparameters
+    arg_parser.add_argument('--iteration', type=int, default=100)
     arg_parser.add_argument('--beta1', type=float, default=0)
     arg_parser.add_argument('--beta2', type=float, default=0.999)
 
@@ -288,5 +289,5 @@ if __name__ == '__main__':
 
 
     trainer = Trainer(opt, get_generator_fnc, get_discriminator_fnc)
-    trainer.train_loop(dl, iteration=10)
+    trainer.train_loop(dl, iteration=opt.iteration)
     del trainer
