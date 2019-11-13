@@ -168,9 +168,9 @@ class Trainer(GANTrainer):
 
         fixed_noise, fixed_aux_labels, fixed_aux_labels_ohe = data_loader.latent_sample()
 
-        generator = self.netGE
-        running_generator = self.netG
-        discriminator = self.netD
+        generator = self.netGE.to(device)
+        running_generator = self.netG.to(device)
+        discriminator = self.netD.to(device)
 
         generator.train()
         discriminator.train()
