@@ -16,7 +16,7 @@ python python/gan_trainer.py \
     --feat_G=$FEAT_G \
     --feat_D=$FEAT_D \
     --beta1=$ADAM_BETA1 \
-    --beta1=$ADAM_BETA2
+    --beta2=$ADAM_BETA2
 
 
 
