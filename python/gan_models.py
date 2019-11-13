@@ -75,7 +75,6 @@ class Generator(nn.Module):
         z = z.squeeze()
         label_ohe = label_ohe.squeeze()
         codes = torch.split(z, self.codes_dim, dim=1)
-        print(codes[0].shape)
 
         x = self.fc(codes[0])  # ->(*,16ch*4*4)
         x = x.view(batch, -1, 4, 4)  # ->(*,16ch,4,4)

@@ -2,6 +2,7 @@ from tensorboardX import SummaryWriter
 import torch
 from PIL import Image
 import os
+import numpy as np
 
 
 def tensor_for_board(img_tensor):
@@ -62,3 +63,15 @@ def save_images(img_tensors, img_names, save_dir):
             array = array.swapaxes(0, 1).swapaxes(1, 2)
 
         Image.fromarray(array).save(os.path.join(save_dir, img_name))
+
+def make_grid_image(list_images, cols=2):
+    rows = []
+    image_size = list_images[0].shape
+    for col_index in range(0, len(list_images), cols):
+        image_in_row = list_images[col_index:col_index + cols]
+        row = np.concatenate(image_in_row, axis=1)
+        if len(image_in_row) < cols:
+            null_image = np.zeros([image_size[0], (cols - len(image_in_row)) * image_size[1], image_size[2]], dtype=np.uint8)
+            row = np.concatenate([row, null_image], axis=1)
+        rows.append(row)
+    return np.concatenate(rows, axis=0)

@@ -72,11 +72,11 @@ class MotorbikeDataloader:
             batch = self.data_iter.__next__()
         return batch
 
-    def get_latent_sample_fnc(self):
+    def get_latent_sample_fnc(self, latent_size=None, batch_size=None, device=None):
         fnc = partial(sample_latent_vector, class_distributions=self.dataset.get_class_distributions(),
-                      latent_size=self.opt.latent_size,
-                      batch_size=self.opt.batch_size,
-                      device=self.get_device())
+                      latent_size=self.opt.latent_size if latent_size is None else latent_size,
+                      batch_size=self.opt.batch_size if batch_size is None else batch_size,
+                      device=self.get_device() if device is None else device)
         return fnc
 
     def latent_sample(self):
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     opt = args.parse_args()
 
     base_tfs, additional_tfs = get_transforms(image_size=128)
-    ds = MotorbikeWithLabelsDataset(opt.path, opt.label_path, base_tfs, additional_tfs, in_memory=False)
+    ds = MotorbikeWithLabelsDataset(opt.path, opt.label_path, base_tfs, additional_tfs, in_memory=True)
     dl = MotorbikeDataloader(opt, ds)
 
     a, b = dl.next_batch()
@@ -109,3 +109,5 @@ if __name__ == '__main__':
     assert a.shape[2] == a.shape[3]
     assert a.shape[3] == opt.image_size
     assert b.shape[0] == opt.batch_size
+
+    print(dl.dataset.class_dist)

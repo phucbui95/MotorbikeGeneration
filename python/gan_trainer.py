@@ -1,19 +1,18 @@
-from dataloader import MotorbikeDataloader, sample_latent_vector, test_sample_latent_vector
-from dataset import MotorbikeWithLabelsDataset, get_transforms
-from gan_models import Generator, Discriminator
+import argparse
+import os
+from datetime import datetime
 
+import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import numpy as np
-import os
+from dataloader import MotorbikeDataloader
+from dataset import MotorbikeWithLabelsDataset, get_transforms
+from gan_models import Generator, Discriminator
+from tensorboardX import SummaryWriter
 from tqdm import tqdm
-import math
-from functools import partial
-
-import argparse
-
+from visualization import make_grid_image
+import matplotlib.pyplot as plt
 
 class GANTrainer:
     def __init__(self, opt, generator_fnc, discriminator_fnc):
@@ -36,8 +35,6 @@ class GANTrainer:
         self.netGE.load_state_dict(checkpoint['netGE'])
         self.optimizerD.load_state_dict(checkpoint['optimizer_D'])
         self.optimizerG.load_state_dict(checkpoint['optimizer_G'])
-
-        self.current_epoch = checkpoint['epoch']
         print("Loaded successfullly save models")
 
     def save(self, filename):
@@ -47,7 +44,6 @@ class GANTrainer:
             'netGE': self.netGE.state_dict(),
             'optimizer_D': self.optimizerD.state_dict(),
             'optimizer_G': self.optimizerG.state_dict(),
-            'epoch': self.current_epoch
         }
         print(f"Saved model to {filename}")
         torch.save(current_state, filename)
@@ -90,7 +86,7 @@ class GANLoss:
         fake_samples = generator(latent, fake_labels_ohe)
         fake_output = discriminator(fake_samples, fake_labels)
 
-        generator_loss = torch.mean(F.relu(1 + fake_output))
+        generator_loss = - torch.mean(fake_output)
         return generator_loss, latent
 
 
@@ -99,6 +95,17 @@ class Trainer(GANTrainer):
         super().__init__(opt, generator_fnc, discriminator_fnc)
 
         self.loss = GANLoss()
+        self.opt.name = self.opt.name + datetime.now().strftime(
+            '%Y-%m-%d_%H-%M-%S')
+        # visualization
+        if not os.path.exists(opt.tensorboard_dir):
+            os.makedirs(opt.tensorboard_dir)
+        board = SummaryWriter(
+            log_dir=os.path.join(opt.tensorboard_dir, opt.name))
+        self.board = board
+
+    def __del__(self):
+        self.board.close()
 
     def train_discriminator(self, data_loader, discriminator, generator):
         loss = 0
@@ -122,17 +129,37 @@ class Trainer(GANTrainer):
         loss = 0
         for accumulative_index in range(self.opt.accumulative_steps):
             latent_sample_fnc = data_loader.get_latent_sample_fnc()
-            generator_loss, latent = self.loss.generator_loss(discriminator, generator,
-                                                      latent_sample_fnc)
+            generator_loss, latent = self.loss.generator_loss(discriminator,
+                                                              generator,
+                                                              latent_sample_fnc)
             loss += generator_loss.item() / float(latent.size(0))
             generator_loss.backward()
 
         self.optimizerG.step()
+        return loss
 
     def move_to_device(self, device):
         self.netD.to(device)
         self.netG.to(device)
         self.netGE.to(device)
+
+    def generate_images(self, data_loader, num_samples):
+        """
+        Generate sample image for visualization while training
+        :param data_loader:
+        :param num_samples:
+        :return:
+        """
+        latent_samplers = data_loader.get_latent_sample_fnc(
+            batch_size=num_samples)
+        noise, _, labels_ohe = latent_samplers()
+        with torch.no_grad():
+            generated_images = self.netG(noise, labels_ohe)
+            generated_images = generated_images * 0.5 + 0.5
+        # return generated_images
+        sample_images = np.transpose(generated_images.cpu().numpy(),
+                                     [0, 2, 3, 1])
+        return [sample_images[i, :, :, :] for i in range(num_samples)]
 
     def train_loop(self, data_loader, iteration=2, device=None):
         if device is None:
@@ -152,46 +179,90 @@ class Trainer(GANTrainer):
         for iter in tqdm(range(iteration)):
             self.toggle_grad(running_generator, False)
             self.toggle_grad(discriminator, True)
-            self.train_discriminator(data_loader, discriminator,
-                                     running_generator)
+            D_running_loss = self.train_discriminator(data_loader,
+                                                      discriminator,
+                                                      running_generator)
 
             self.toggle_grad(running_generator, True)
             self.toggle_grad(discriminator, False)
-            self.train_generator(data_loader, discriminator, running_generator)
+            G_running_loss = self.train_generator(data_loader, discriminator,
+                                                  running_generator)
             self.ema_step(running_generator, running_generator)
 
             # Callback
+            if iter % self.opt.logging_steps == 0:
+                print('[{:d}/{:d}] D_loss = {:.3f}, G_loss = {:.3f}'.format(
+                    iter, iteration, D_running_loss, G_running_loss))
+                self.board.add_scalar('D_loss', D_running_loss,
+                                      global_step=iter)
+                self.board.add_scalar('G_loss', G_running_loss,
+                                      global_step=iter)
+                generated_imgs = self.generate_images(data_loader, 12)
+                sample_image = make_grid_image(generated_imgs, cols=4)
+                # board_add_images(self.board, 'combie', generated_imgs, iter + 1)
+                visuals = np.transpose(
+                    (sample_image[..., ::-1] * 255).astype(np.uint8), [2, 0, 1])
+                self.board.add_image(f'combie', visuals, global_step=iter)
+                sample_dir = self.opt.sample_dir
+                name = self.opt.name
+                dir = os.path.join(sample_dir, name)
+                if not os.path.exists(dir):
+                    os.makedirs(dir)
+                fname = f'{dir}/sample_{iter}.png'
+                plt.imsave(fname, sample_image)
+
+            if iter % self.opt.checkpoint_steps == 0:
+                checkpoint_dir = os.path.join(self.opt.checkpoint_dir,
+                                              self.opt.name)
+                if not os.path.exists(checkpoint_dir):
+                    os.makedirs(checkpoint_dir)
+                filename = f'{checkpoint_dir}/model_{iter}.pth'
+                self.save(filename)
+
+
+def add_argments(arg_parser):
+    arg_parser.add_argument('--name', type=str,
+                            required=True)  # name of experiment
+
+    arg_parser.add_argument('--path', type=str, required=True)
+    arg_parser.add_argument('--label_path', type=str, required=True)
+    arg_parser.add_argument('--image_size', type=int, default=128)
+    arg_parser.add_argument('--batch_size', type=int, default=32)
+    arg_parser.add_argument('--workers', type=int, default=0)
+    arg_parser.add_argument('--shuffle', action='store_true')
+
+    # model configure
+    arg_parser.add_argument('--n_classes', type=int, default=30)
+    arg_parser.add_argument('--accumulative_steps', type=int, default=2)
+    arg_parser.add_argument('--latent_size', type=int, default=120)
+
+    arg_parser.add_argument('--feat_G', type=int, default=24)
+    arg_parser.add_argument('--feat_D', type=int, default=24)
+
+    # Optimizer hyperparameters
+    arg_parser.add_argument('--beta1', type=float, default=0)
+    arg_parser.add_argument('--beta2', type=float, default=0.999)
+
+    arg_parser.add_argument('--lr_D', type=float, default=0.0004)
+    arg_parser.add_argument('--lr_G', type=float, default=0.0004)
+
+    arg_parser.add_argument('--ema', type=float, default=0.999)
+
+    # Logging
+    arg_parser.add_argument('--logging_steps', type=int, default=2)
+    arg_parser.add_argument('--checkpoint_steps', type=int, default=20)
+    arg_parser.add_argument('--sample_dir', type=str, default='sample')
+    arg_parser.add_argument('--checkpoint_dir', type=str, default='checkpoint')
+    arg_parser.add_argument('--tensorboard_dir', type=str,
+                            default='tensorboard_log')
 
 
 def parse_arguments():
     args = argparse.ArgumentParser(description="Main training loop testing")
-    args.add_argument('--path', type=str, required=True)
-    args.add_argument('--label_path', type=str, required=True)
-    args.add_argument('--image_size', type=int, default=128)
-    args.add_argument('--batch_size', type=int, default=32)
-    args.add_argument('--workers', type=int, default=0)
-    args.add_argument('--shuffle', action='store_true')
-
-    # model configure
-    args.add_argument('--n_classes', type=int, default=30)
-    args.add_argument('--accumulative_steps', type=int, default=2)
-    args.add_argument('--latent_size', type=int, default=120)
-
-    args.add_argument('--feat_G', type=int, default=24)
-    args.add_argument('--feat_D', type=int, default=24)
-
-    # Optimizer hyperparameters
-    args.add_argument('--beta1', type=float, default=0)
-    args.add_argument('--beta2', type=float, default=0.999)
-
-    args.add_argument('--lr_D', type=float, default=0.0004)
-    args.add_argument('--lr_G', type=float, default=0.0004)
-
-    args.add_argument('--ema', type=float, default=0.999)
+    add_argments(args)
     # args.add_argument()
     opt = args.parse_args()
     return opt
-
 
 if __name__ == '__main__':
     opt = parse_arguments()
@@ -202,15 +273,20 @@ if __name__ == '__main__':
                                     additional_tfs, in_memory=False)
     dl = MotorbikeDataloader(opt, ds)
     class_dist = dl.dataset.get_class_distributions()
-    print(class_dist)
-    print(sum(class_dist))
+
+
+    # print(class_dist)
+    # print(sum(class_dist))
 
     def get_generator_fnc(opt):
-        return Generator(n_feat=opt.feat_G, codes_dim=10, n_classes=opt.n_classes)
+        return Generator(n_feat=opt.feat_G, codes_dim=10,
+                         n_classes=opt.n_classes)
+
 
     def get_discriminator_fnc(opt):
         return Discriminator(n_feat=opt.feat_D, n_classes=opt.n_classes)
 
 
     trainer = Trainer(opt, get_generator_fnc, get_discriminator_fnc)
-    trainer.train_loop(dl, iteration=2)
+    trainer.train_loop(dl, iteration=10)
+    del trainer

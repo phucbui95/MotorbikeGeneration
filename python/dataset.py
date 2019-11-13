@@ -481,7 +481,7 @@ class MotorbikeWithLabelsDataset(Dataset):
                          self.mapping_id_label]
 
         if self.in_memmory:
-            self.load_data(img_list)
+            self.load_data(self.img_list)
 
     def __len__(self):
         return len(self.img_list)
@@ -522,7 +522,9 @@ if __name__ == '__main__':
     tf1, tf2 = get_transforms(128)
     ds = MotorbikeWithLabelsDataset('../data/resized128_image_fixed', '../data/label.csv',
                                     tf1, tf2,
-                                    in_memory=False)
+                                    in_memory=True)
+
+    ds[0]
     print(ds.get_class_distributions())
     # print(ds[1])
     # print(ds.img_list[1])
