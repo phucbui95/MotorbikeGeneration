@@ -168,7 +168,7 @@ class Trainer(GANTrainer):
 
         fixed_noise, fixed_aux_labels, fixed_aux_labels_ohe = data_loader.latent_sample()
 
-        generator = self.netGE.to(device)
+        generator = self.netGE
         running_generator = self.netG.to(device)
         discriminator = self.netD.to(device)
 
@@ -187,7 +187,7 @@ class Trainer(GANTrainer):
             self.toggle_grad(discriminator, False)
             G_running_loss = self.train_generator(data_loader, discriminator,
                                                   running_generator)
-            self.ema_step(running_generator, running_generator)
+            self.ema_step(running_generator, generator)
 
             # Callback
             if iter % self.opt.logging_steps == 0:

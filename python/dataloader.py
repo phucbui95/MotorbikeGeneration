@@ -70,7 +70,7 @@ class MotorbikeDataloader:
         except StopIteration:
             self.data_iter = self.data_loader.__iter__()
             batch = self.data_iter.__next__()
-        return batch.to(self.get_device())
+        return batch[0].to(self.get_device()), batch[1].to(self.get_device())
 
     def get_latent_sample_fnc(self, latent_size=None, batch_size=None, device=None):
         fnc = partial(sample_latent_vector, class_distributions=self.dataset.get_class_distributions(),
