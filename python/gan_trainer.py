@@ -140,11 +140,6 @@ class Trainer(GANTrainer):
         self.optimizerG.step()
         return loss
 
-    def move_to_device(self, device):
-        self.netD.to(device)
-        self.netG.to(device)
-        self.netGE.to(device)
-
     def generate_images(self, data_loader, num_samples):
         """
         Generate sample image for visualization while training
@@ -179,6 +174,7 @@ class Trainer(GANTrainer):
         # allow resume training
 
         for iter in tqdm(range(iteration)):
+
             discriminator.zero_grad()
             self.toggle_grad(running_generator, False)
             self.toggle_grad(discriminator, True)
@@ -240,9 +236,11 @@ def add_argments(arg_parser):
     arg_parser.add_argument('--n_classes', type=int, default=30)
     arg_parser.add_argument('--accumulative_steps', type=int, default=2)
     arg_parser.add_argument('--latent_size', type=int, default=120)
+    arg_parser.add_argument('--code_dim', type=int, default=20)
 
     arg_parser.add_argument('--feat_G', type=int, default=24)
     arg_parser.add_argument('--feat_D', type=int, default=24)
+
 
     # Optimizer hyperparameters
     arg_parser.add_argument('--iteration', type=int, default=100)
@@ -256,7 +254,7 @@ def add_argments(arg_parser):
 
     # Logging
     arg_parser.add_argument('--logging_steps', type=int, default=10)
-    arg_parser.add_argument('--checkpoint_steps', type=int, default=20)
+    arg_parser.add_argument('--checkpoint_steps', type=int, default=500)
     arg_parser.add_argument('--sample_dir', type=str, default='sample')
     arg_parser.add_argument('--checkpoint_dir', type=str, default='checkpoint')
     arg_parser.add_argument('--tensorboard_dir', type=str,
@@ -270,9 +268,14 @@ def parse_arguments():
     opt = args.parse_args()
     return opt
 
+def display_argments(opt):
+    print("{:=^90}".format('Auguments'))
+    for k, v in opt.__dict__.items():
+        print("{: <20}:{: >80}".format(str(k),str(v)))
+
 if __name__ == '__main__':
     opt = parse_arguments()
-
+    display_argments(opt)
     # test_sample_latent_vector()
     base_tfs, additional_tfs = get_transforms(image_size=128)
     ds = MotorbikeWithLabelsDataset(opt.path, opt.label_path, base_tfs,
@@ -280,18 +283,15 @@ if __name__ == '__main__':
     dl = MotorbikeDataloader(opt, ds)
     class_dist = dl.dataset.get_class_distributions()
 
-
     # print(class_dist)
     # print(sum(class_dist))
-
     def get_generator_fnc(opt):
-        return Generator(n_feat=opt.feat_G, codes_dim=10,
+        return Generator(n_feat=opt.feat_G, codes_dim=opt.code_dim,
                          n_classes=opt.n_classes)
 
 
     def get_discriminator_fnc(opt):
         return Discriminator(n_feat=opt.feat_D, n_classes=opt.n_classes)
-
 
     trainer = Trainer(opt, get_generator_fnc, get_discriminator_fnc)
     trainer.train_loop(dl, iteration=opt.iteration)
