@@ -72,12 +72,14 @@ class GANLoss:
                            generator, latent_sample_fnc):
         real_output = discriminator(real_samples, real_labels)
         real_loss = torch.mean(F.relu(1 - real_output))
+        real_loss.backward(retain_graph=True)
 
         latent, fake_labels, fake_labels_ohe = latent_sample_fnc()
         fake_samples = generator(latent, fake_labels_ohe)
         fake_output = discriminator(fake_samples, fake_labels)
-
         fake_loss = torch.mean(F.relu(1 + fake_output))
+        fake_loss.backward(retain_graph=True)
+
         discriminator_loss = (real_loss + fake_loss) / 2.0
         return discriminator_loss
 
@@ -120,7 +122,7 @@ class Trainer(GANTrainer):
                                                               latent_sample_fnc)
 
             loss += discriminator_loss.item() / float(real_samples.size(0))
-            discriminator_loss.backward()
+            # discriminator_loss.backward()
 
         self.optimizerD.step()
         return loss
@@ -177,15 +179,18 @@ class Trainer(GANTrainer):
         # allow resume training
 
         for iter in tqdm(range(iteration)):
+            discriminator.zero_grad()
             self.toggle_grad(running_generator, False)
             self.toggle_grad(discriminator, True)
             D_running_loss = self.train_discriminator(data_loader,
                                                       discriminator,
                                                       running_generator)
 
+            generator.zero_grad()
             self.toggle_grad(running_generator, True)
             self.toggle_grad(discriminator, False)
-            G_running_loss = self.train_generator(data_loader, discriminator,
+            G_running_loss = self.train_generator(data_loader,
+                                                  discriminator,
                                                   running_generator)
             self.ema_step(running_generator, generator)
 
