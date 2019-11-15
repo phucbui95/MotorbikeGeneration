@@ -276,6 +276,7 @@ def add_argments(arg_parser):
     arg_parser.add_argument('--lr_G', type=float, default=0.0004)
 
     arg_parser.add_argument('--ema', type=float, default=0.999)
+    arg_parser.add_argument('--use_dropout', type=float, default=None, required=False)
 
     # Logging
     arg_parser.add_argument('--logging_steps', type=int, default=10)
@@ -316,6 +317,9 @@ if __name__ == '__main__':
 
     # print(class_dist)
     # print(sum(class_dist))
+    if opt.use_dropout is None or opt.use_dropout < 0:
+        opt.use_dropout = None
+
     def get_generator_fnc(opt):
         return Generator(n_feat=opt.feat_G,
                          max_resolution=opt.image_size,
@@ -324,8 +328,10 @@ if __name__ == '__main__':
 
 
     def get_discriminator_fnc(opt):
-        return Discriminator(n_feat=opt.feat_D, max_resolution=opt.image_size,
-                             n_classes=opt.n_classes)
+        return Discriminator(n_feat=opt.feat_D,
+                             max_resolution=opt.image_size,
+                             n_classes=opt.n_classes,
+                             use_dropout=opt.use_dropout)
 
     trainer = Trainer(opt, get_generator_fnc, get_discriminator_fnc)
     trainer.summary()

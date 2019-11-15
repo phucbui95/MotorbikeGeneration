@@ -160,9 +160,12 @@ class ResBlock_D(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, n_feat, max_resolution, n_classes=0, use_attention=False):
+    def __init__(self, n_feat, max_resolution, n_classes=0,
+                 use_dropout=None,
+                 use_attention=False):
         super().__init__()
         self.max_resolution = max_resolution
+        self.use_dropout = use_dropout
         self.res1 = ResBlock_D(3, n_feat, downsample=True)
         self.use_attention = use_attention
         if use_attention:
@@ -182,6 +185,9 @@ class Discriminator(nn.Module):
             if is_last:
                 last_block_factor = curr_dim
 
+        if self.use_dropout is not None:
+            self.dropout = nn.Dropout(self.use_dropout)
+
         self.fc = nn.utils.spectral_norm(nn.Linear(last_block_factor * n_feat, 1)).apply(
             init_weight)
         self.embedding = nn.Embedding(num_embeddings=n_classes,
@@ -197,7 +203,8 @@ class Discriminator(nn.Module):
         for block_index, block in enumerate(self.residual_blocks):
             #print(f"block_{block_index}: h.shape={h.shape}")
             h = block(h)
-
+        if self.use_dropout is not None:
+            h = self.dropout(h)
         h = torch.sum((F.leaky_relu(h, 0.2)).view(batch, -1, 4 * 4),
                       dim=2)  # GlobalSumPool ->(*,16ch)
         outputs = self.fc(h)  # ->(*,1)
