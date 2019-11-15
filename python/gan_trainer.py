@@ -106,6 +106,17 @@ class Trainer(GANTrainer):
             log_dir=os.path.join(opt.tensorboard_dir, opt.name))
         self.board = board
 
+    def summary(self):
+        def count_parameters(model):
+            return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+        print("{:=^90}".format("Generator"))
+        print("{: >30}:{: <60}".format("Number of parameters", count_parameters(self.netG)))
+        print("{:=^90}".format("Discriminator"))
+        print("{: >30}:{: <60}".format("Number of parameters",
+                                       count_parameters(self.netD)))
+
+
     def __del__(self):
         self.board.close()
 
@@ -182,7 +193,7 @@ class Trainer(GANTrainer):
                                                       discriminator,
                                                       running_generator)
 
-            generator.zero_grad()
+            running_generator.zero_grad()
             self.toggle_grad(running_generator, True)
             self.toggle_grad(discriminator, False)
             G_running_loss = self.train_generator(data_loader,
@@ -260,6 +271,9 @@ def add_argments(arg_parser):
     arg_parser.add_argument('--tensorboard_dir', type=str,
                             default='tensorboard_log')
 
+    # Checkpoint
+    arg_parser.add_argument('--ckpt', type=str, default=None)
+
 
 def parse_arguments():
     args = argparse.ArgumentParser(description="Main training loop testing")
@@ -268,7 +282,9 @@ def parse_arguments():
     opt = args.parse_args()
     return opt
 
+
 def display_argments(opt):
+    """Helper function for pretty printing arguments"""
     print("{:=^90}".format('Auguments'))
     for k, v in opt.__dict__.items():
         print("{: <20}:{: >80}".format(str(k),str(v)))
@@ -277,7 +293,7 @@ if __name__ == '__main__':
     opt = parse_arguments()
     display_argments(opt)
     # test_sample_latent_vector()
-    base_tfs, additional_tfs = get_transforms(image_size=128)
+    base_tfs, additional_tfs = get_transforms(image_size=opt.image_size)
     ds = MotorbikeWithLabelsDataset(opt.path, opt.label_path, base_tfs,
                                     additional_tfs, in_memory=False)
     dl = MotorbikeDataloader(opt, ds)
@@ -286,13 +302,22 @@ if __name__ == '__main__':
     # print(class_dist)
     # print(sum(class_dist))
     def get_generator_fnc(opt):
-        return Generator(n_feat=opt.feat_G, codes_dim=opt.code_dim,
+        return Generator(n_feat=opt.feat_G,
+                         max_resolution=opt.image_size,
+                         codes_dim=opt.code_dim,
                          n_classes=opt.n_classes)
 
 
     def get_discriminator_fnc(opt):
-        return Discriminator(n_feat=opt.feat_D, n_classes=opt.n_classes)
+        return Discriminator(n_feat=opt.feat_D, max_resolution=opt.image_size,
+                             n_classes=opt.n_classes)
 
     trainer = Trainer(opt, get_generator_fnc, get_discriminator_fnc)
+    trainer.summary()
+    if opt.ckpt is not None and os.path.exists(opt.ckpt):
+        print("{:=^90}".format(''))
+        print(f"Loading from a checkpoint at {opt.ckpt}")
+        print("{:=^90}".format(''))
+        trainer.resume(opt.ckpt)
     trainer.train_loop(dl, iteration=opt.iteration)
     del trainer

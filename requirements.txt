@@ -14,3 +14,4 @@ kaggle
 jupyter
 tensorboardX==1.9
 boto3
+torchsummary==1.5.1

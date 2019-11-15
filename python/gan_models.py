@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from torchvision.utils import make_grid, save_image
 import math
-
+import torchsummary
 
 from dataset import MotorbikeDataset, MotorbikeWithLabelsDataset, get_transforms
 from layers import init_weight, conv1x1, conv3x3, Attention, ConditionalNorm
@@ -42,28 +42,45 @@ class ResBlock_G(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, n_feat, codes_dim, n_classes=0):
+    def __init__(self, n_feat, max_resolution,
+                 codes_dim,
+                 n_classes=0,
+                 use_attention=False,
+                 custom_dims=None):
         super().__init__()
         self.codes_dim = codes_dim
+
+        # construct residual blocks
+        n_layers = int(np.log2(max_resolution) - 2)
+        self.residual_blocks = []
+        last_block_dim = 0
+        first_block_dim = 2 ** (n_layers)
         self.fc = nn.Sequential(
             nn.utils.spectral_norm(
-                nn.Linear(codes_dim, 16 * n_feat * 4 * 4)).apply(init_weight)
+                nn.Linear(codes_dim, first_block_dim * n_feat * 4 * 4)).apply(init_weight)
         )
-        self.res1 = ResBlock_G(16 * n_feat, 16 * n_feat, codes_dim + n_classes,
-                               upsample=True)
-        self.res2 = ResBlock_G(16 * n_feat, 8 * n_feat, codes_dim + n_classes,
-                               upsample=True)
-        self.res3 = ResBlock_G(8 * n_feat, 4 * n_feat, codes_dim + n_classes,
-                               upsample=True)
-        self.attn = Attention(2 * n_feat)
-        self.res4 = ResBlock_G(4 * n_feat, 2 * n_feat, codes_dim + n_classes,
-                               upsample=True)
-        self.res5 = ResBlock_G(2 * n_feat, n_feat, codes_dim + n_classes,
-                               upsample=True)
-        self.conv = nn.Sequential(
+        #print("first_block", first_block_dim)
+        #print("n_layers ", n_layers)
+        for i in range(n_layers):
+            prev_dim = 2 ** (n_layers - i)
+            curr_dim = 2 ** (n_layers - i - 1)
+            #print(f"block ({i}): {prev_dim}, {curr_dim}")
+            block = ResBlock_G(prev_dim * n_feat, curr_dim * n_feat, codes_dim + n_classes, upsample=True)
+            self.residual_blocks.append(block)
+            # add current block to the model class
+            self.add_module(f'res_block_{i}', block)
+            if i == n_layers - 1:
+                last_block_dim = curr_dim
+
+        if use_attention:
+            self.attn = Attention(2 * n_feat)
+
+        #print("last_layer ", last_block_dim)
+        self.to_rgb = nn.Sequential(
             # nn.BatchNorm2d(2*n_feat).apply(init_weight),
             nn.LeakyReLU(),
-            nn.utils.spectral_norm(conv3x3(n_feat, 3)).apply(init_weight),
+            nn.utils.spectral_norm(conv3x3(last_block_dim * n_feat, 3)).apply(init_weight),
+            nn.Tanh()
         )
 
     def forward(self, z, label_ohe):
@@ -78,27 +95,41 @@ class Generator(nn.Module):
 
         x = self.fc(codes[0])  # ->(*,16ch*4*4)
         x = x.view(batch, -1, 4, 4)  # ->(*,16ch,4,4)
-
-        condition = torch.cat([codes[1], label_ohe],
-                              dim=1)  # (*,codes_dim+n_classes)
-        x = self.res1(x, condition)  # ->(*,16ch,8,8)
-
-        condition = torch.cat([codes[2], label_ohe], dim=1)
-        x = self.res2(x, condition)  # ->(*,8ch,16,16)
-
-        condition = torch.cat([codes[3], label_ohe], dim=1)
-        x = self.res3(x, condition)  # ->(*,4ch,32,32)
-
-        condition = torch.cat([codes[4], label_ohe], dim=1)
-        x = self.res4(x, condition)  # ->(*,2ch,64,64)
-        #         x = self.attn(x) #not change shape
-
-        condition = torch.cat([codes[5], label_ohe], dim=1)
-        x = self.res5(x, condition)  # ->(*,2ch,128,128)
-
-        x = self.conv(x)  # ->(*,3,128,128)
-        x = torch.tanh(x)
+        # #print(f"feat={x.shape}")
+        for block_index, block in enumerate(self.residual_blocks):
+            # #print(f"block {block_index}")
+            condition = torch.cat([codes[block_index + 1], label_ohe], dim=1)
+            # #print(f"x.shape={x.shape}, condition.shape={condition.shape}")
+            x = block(x, condition)
+        x = self.to_rgb(x)
         return x
+
+def test_generator():
+    res = 128
+    n_classes = 30
+    g = Generator(
+        n_feat=32,
+        max_resolution=res,
+        codes_dim=32,
+        n_classes=n_classes,
+        use_attention=False
+    )
+
+    def count_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    print("Numer of parameters: ", count_parameters(g))
+    print("{:=^90}".format('Model'))
+    print(g)
+    print("{:=^90}".format(''))
+
+    inp = torch.randn((2, 32 * 8))
+    ohe = torch.randn((2, n_classes))
+    with torch.no_grad():
+        output = g(inp, ohe)
+    print("Output shape: ", output.shape)
+
+    assert output.shape[2] == res
 
 
 class ResBlock_D(nn.Module):
@@ -129,31 +160,43 @@ class ResBlock_D(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, n_feat, n_classes=0):
+    def __init__(self, n_feat, max_resolution, n_classes=0, use_attention=False):
         super().__init__()
+        self.max_resolution = max_resolution
         self.res1 = ResBlock_D(3, n_feat, downsample=True)
-        self.attn = Attention(n_feat)
-        self.res2 = ResBlock_D(n_feat, 2 * n_feat, downsample=True)
-        self.res3 = ResBlock_D(2 * n_feat, 4 * n_feat, downsample=True)
-        self.res4 = ResBlock_D(4 * n_feat, 8 * n_feat, downsample=True)
-        self.res5 = ResBlock_D(8 * n_feat, 16 * n_feat, downsample=True)
-        self.res6 = ResBlock_D(16 * n_feat, 16 * n_feat, downsample=False)
+        self.use_attention = use_attention
+        if use_attention:
+            self.attn = Attention(n_feat)
 
-        self.fc = nn.utils.spectral_norm(nn.Linear(16 * n_feat, 1)).apply(
+        self.residual_blocks = []
+        n_layers = int(np.log2(self.max_resolution)) - 2
+        last_block_factor = 0
+        for i in range(n_layers):
+            is_last = (i == n_layers - 1)
+            prev_dim = 2 ** (i)
+            curr_dim = 2 ** (i + 1)
+
+            block = ResBlock_D(prev_dim * n_feat, curr_dim * n_feat, downsample=not is_last)
+            self.residual_blocks.append(block)
+            self.add_module(f"res_block_{i}", block)
+            if is_last:
+                last_block_factor = curr_dim
+
+        self.fc = nn.utils.spectral_norm(nn.Linear(last_block_factor * n_feat, 1)).apply(
             init_weight)
         self.embedding = nn.Embedding(num_embeddings=n_classes,
-                                      embedding_dim=16 * n_feat).apply(
+                                      embedding_dim=last_block_factor * n_feat).apply(
             init_weight)
 
     def forward(self, inputs, label):
         batch = inputs.size(0)  # (*,3,128,128)
         h = self.res1(inputs)  # ->(*,ch,64,64)
-        #         h = self.attn(h) #not change shape
-        h = self.res2(h)  # ->(*,2ch,32,32)
-        h = self.res3(h)  # ->(*,4ch,16,16)
-        h = self.res4(h)  # ->(*,8ch,8,8)
-        h = self.res5(h)  # ->(*,16ch,4,4)
-        h = self.res6(h)  # ->(*,32ch,4,4)
+        if self.use_attention:
+            h = self.attn(h)
+
+        for block_index, block in enumerate(self.residual_blocks):
+            #print(f"block_{block_index}: h.shape={h.shape}")
+            h = block(h)
 
         h = torch.sum((F.leaky_relu(h, 0.2)).view(batch, -1, 4 * 4),
                       dim=2)  # GlobalSumPool ->(*,16ch)
@@ -161,6 +204,41 @@ class Discriminator(nn.Module):
 
         if label is not None:
             embed = self.embedding(label)  # ->(*,16ch)
+            #print(f"label.shape={label.shape}")
+            #print(f"embedding_output= {embed.shape}")
+            #print(f"h.shape={h.shape}")
+            #print(f"output.shape={outputs.shape}")
             outputs += torch.sum(embed * h, dim=1, keepdim=True)  # ->(*,1)
 
         return outputs
+
+def test_discriminator():
+    res = 128
+    n_classes=30
+    d = Discriminator(
+        n_feat=32,
+        max_resolution=res,
+        n_classes=n_classes,
+        use_attention=False
+    )
+
+    def count_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    inp = torch.randn((2, 3, res, res))
+    cls = torch.from_numpy(np.random.randint(0, n_classes, (2,)))
+
+    print("Numer of parameters: ", count_parameters(d))
+    print("{:=^90}".format('Model'))
+    print(d)
+    # torchsummary.summary(d, [(3, res, res), (n_classes,)])
+    print("{:=^90}".format(''))
+
+    with torch.no_grad():
+        output = d(inp, cls)
+    print("Output shape: ", output.shape)
+
+
+if __name__ == '__main__':
+    # test_generator()
+    test_discriminator()
