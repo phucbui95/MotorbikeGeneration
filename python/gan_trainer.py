@@ -34,9 +34,9 @@ class GANTrainer:
         self.netD.load_state_dict(checkpoint['netD'])
         self.netG.load_state_dict(checkpoint['netG'])
         self.netGE.load_state_dict(checkpoint['netGE'])
-        self.optimizerD.load_state_dict(checkpoint['optimizer_D'])
-        self.optimizerG.load_state_dict(checkpoint['optimizer_G'])
-        print("Loaded successfullly save models")
+        # self.optimizerD.load_state_dict(checkpoint['optimizer_D'])
+        # self.optimizerG.load_state_dict(checkpoint['optimizer_G'])
+        print("[INFO] Loaded successfullly save models")
 
     def save(self, filename):
         current_state = {

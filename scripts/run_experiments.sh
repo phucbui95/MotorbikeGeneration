@@ -19,5 +19,6 @@ run_experiment() {
         --beta2=$ADAM_BETA2 \
         --logging_steps=$LOGGING_STEPS \
         --checkpoint_steps=$CHECKPOINT_STEPS \
-        --ckpt=$CKPT
+        --ckpt=$CKPT \
+        --checkpoint_mode=$CHECKPOINT_MODE
 }
