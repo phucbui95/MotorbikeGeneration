@@ -12,6 +12,7 @@ from gan_models import Generator, Discriminator
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from visualization import make_grid_image
+from s3_client import S3Storage
 import matplotlib.pyplot as plt
 
 class GANTrainer:
@@ -105,6 +106,8 @@ class Trainer(GANTrainer):
         board = SummaryWriter(
             log_dir=os.path.join(opt.tensorboard_dir, opt.name))
         self.board = board
+        if opt.checkpoint_mode == 's3':
+            self.s3storage = S3Storage(self.opt.name)
 
     def summary(self):
         def count_parameters(model):
@@ -119,6 +122,10 @@ class Trainer(GANTrainer):
 
     def __del__(self):
         self.board.close()
+        try:
+            del self.s3storage
+        except:
+            pass
 
     def train_discriminator(self, data_loader, discriminator, generator):
         loss = 0
@@ -231,6 +238,13 @@ class Trainer(GANTrainer):
                 filename = f'{checkpoint_dir}/model_{iter}.pth'
                 self.save(filename)
 
+                if self.opt.checkpoint_mode == 's3':
+                    try:
+                        self.s3storage.send_async(filename, 'checkpoint')
+                    except:
+                        print("Error while checkpoints were uploading to s3")
+                        pass
+
 
 def add_argments(arg_parser):
     arg_parser.add_argument('--name', type=str,
@@ -270,10 +284,11 @@ def add_argments(arg_parser):
     arg_parser.add_argument('--checkpoint_dir', type=str, default='checkpoint')
     arg_parser.add_argument('--tensorboard_dir', type=str,
                             default='tensorboard_log')
+    arg_parser.add_argument('--checkpoint_mode', type=str, default='local',
+                            help='local|s3')
 
     # Checkpoint
     arg_parser.add_argument('--ckpt', type=str, default=None)
-
 
 def parse_arguments():
     args = argparse.ArgumentParser(description="Main training loop testing")

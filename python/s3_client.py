@@ -126,8 +126,9 @@ def upload_fnc(filename, prefix=None):
         prefix = ''
     s3 = S3Client()
     bucket_name = 'phucbb'
+    print("[INFO] Starting uploading job")
     s3.upload_file(bucket_name, filename, prefix=prefix)
-    print("Uploaded model -> S3")
+    print("[INFO] Uploaded model -> S3")
 
 class S3Storage:
     def __init__(self, name):
@@ -153,7 +154,7 @@ class S3Storage:
 if __name__ == '__main__':
 
     storage = S3Storage('sample')
-    storage.send_async('../download.sh', None)
+    storage.send_async('../checkpoint/biggan_c602019-11-15_11-13-06/model_0.pth', 'model')
     time.sleep(10)
     storage.send_async('../Dockerfile', None)
 
