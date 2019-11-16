@@ -22,5 +22,6 @@ run_experiment() {
         --use_dropout=$USE_DROPOUT \
         --logging_steps=$LOGGING_STEPS \
         --checkpoint_steps=$CHECKPOINT_STEPS \
+        --checkpoint_mode=$CHECKPOINT_MODE \
         --ckpt=$CKPT
 }
