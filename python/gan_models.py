@@ -1,17 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-from torch.utils.data import DataLoader, SubsetRandomSampler
 from tqdm import tqdm_notebook
-import os
 import numpy as np
-import matplotlib.pyplot as plt
-from torchvision.utils import make_grid, save_image
 import math
-import torchsummary
 
-from dataset import MotorbikeDataset, MotorbikeWithLabelsDataset, get_transforms
 from layers import init_weight, conv1x1, conv3x3, Attention, ConditionalNorm
 
 

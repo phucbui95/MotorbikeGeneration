@@ -15,6 +15,7 @@ from visualization import make_grid_image
 from s3_client import S3Storage
 import matplotlib.pyplot as plt
 
+
 class GANTrainer:
     def __init__(self, opt, generator_fnc, discriminator_fnc):
         self.opt = opt
@@ -114,11 +115,11 @@ class Trainer(GANTrainer):
             return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
         print("{:=^90}".format("Generator"))
-        print("{: >30}:{: <60}".format("Number of parameters", count_parameters(self.netG)))
+        print("{: >30}:{: <60}".format("Number of parameters",
+                                       count_parameters(self.netG)))
         print("{:=^90}".format("Discriminator"))
         print("{: >30}:{: <60}".format("Number of parameters",
                                        count_parameters(self.netD)))
-
 
     def __del__(self):
         self.board.close()
@@ -266,7 +267,6 @@ def add_argments(arg_parser):
     arg_parser.add_argument('--feat_G', type=int, default=24)
     arg_parser.add_argument('--feat_D', type=int, default=24)
 
-
     # Optimizer hyperparameters
     arg_parser.add_argument('--iteration', type=int, default=100)
     arg_parser.add_argument('--beta1', type=float, default=0)
@@ -276,7 +276,8 @@ def add_argments(arg_parser):
     arg_parser.add_argument('--lr_G', type=float, default=0.0004)
 
     arg_parser.add_argument('--ema', type=float, default=0.999)
-    arg_parser.add_argument('--use_dropout', type=float, default=None, required=False)
+    arg_parser.add_argument('--use_dropout', type=float, default=None,
+                            required=False)
 
     # Logging
     arg_parser.add_argument('--logging_steps', type=int, default=10)
@@ -291,6 +292,7 @@ def add_argments(arg_parser):
     # Checkpoint
     arg_parser.add_argument('--ckpt', type=str, default=None)
 
+
 def parse_arguments():
     args = argparse.ArgumentParser(description="Main training loop testing")
     add_argments(args)
@@ -303,7 +305,8 @@ def display_argments(opt):
     """Helper function for pretty printing arguments"""
     print("{:=^90}".format('Auguments'))
     for k, v in opt.__dict__.items():
-        print("{: <20}:{: >80}".format(str(k),str(v)))
+        print("{: <20}:{: >80}".format(str(k), str(v)))
+
 
 if __name__ == '__main__':
     opt = parse_arguments()
@@ -320,6 +323,7 @@ if __name__ == '__main__':
     if opt.use_dropout is None or opt.use_dropout < 0:
         opt.use_dropout = None
 
+
     def get_generator_fnc(opt):
         return Generator(n_feat=opt.feat_G,
                          max_resolution=opt.image_size,
@@ -332,6 +336,7 @@ if __name__ == '__main__':
                              max_resolution=opt.image_size,
                              n_classes=opt.n_classes,
                              use_dropout=opt.use_dropout)
+
 
     trainer = Trainer(opt, get_generator_fnc, get_discriminator_fnc)
     trainer.summary()

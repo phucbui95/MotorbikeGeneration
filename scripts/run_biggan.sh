@@ -23,4 +23,7 @@ LOGGING_STEPS=100
 CHECKPOINT_STEPS=1000
 
 # running scripts
-run_experiment
+if [[ -v EVAL ]];
+then
+    run_experiment
+fi
