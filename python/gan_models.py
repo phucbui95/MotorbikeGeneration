@@ -45,7 +45,7 @@ class Generator(nn.Module):
 
         # construct residual blocks
         n_layers = int(np.log2(max_resolution) - 2)
-        self.residual_blocks = []
+        self.residual_blocks = nn.ModuleList([])
         last_block_dim = 0
         first_block_dim = 2 ** (n_layers)
         self.fc = nn.Sequential(
@@ -59,9 +59,9 @@ class Generator(nn.Module):
             curr_dim = 2 ** (n_layers - i - 1)
             #print(f"block ({i}): {prev_dim}, {curr_dim}")
             block = ResBlock_G(prev_dim * n_feat, curr_dim * n_feat, codes_dim + n_classes, upsample=True)
-            self.residual_blocks.append(block)
+            # self.residual_blocks.append(block)
             # add current block to the model class
-            self.add_module(f'res_block_{i}', block)
+            self.residual_blocks.add_module(f'res_block_{i}', block)
             if i == n_layers - 1:
                 last_block_dim = curr_dim
 
@@ -90,9 +90,10 @@ class Generator(nn.Module):
         x = x.view(batch, -1, 4, 4)  # ->(*,16ch,4,4)
         # #print(f"feat={x.shape}")
         for block_index, block in enumerate(self.residual_blocks):
-            # #print(f"block {block_index}")
+            print(f"block {block_index}")
+            print(block)
             condition = torch.cat([codes[block_index + 1], label_ohe], dim=1)
-            # #print(f"x.shape={x.shape}, condition.shape={condition.shape}")
+            print(f"x.shape={x.shape}, condition.shape={condition.shape}")
             x = block(x, condition)
         x = self.to_rgb(x)
         return x
@@ -164,7 +165,7 @@ class Discriminator(nn.Module):
         if use_attention:
             self.attn = Attention(n_feat)
 
-        self.residual_blocks = []
+        self.residual_blocks = nn.ModuleList([])
         n_layers = int(np.log2(self.max_resolution)) - 2
         last_block_factor = 0
         for i in range(n_layers):
@@ -173,8 +174,7 @@ class Discriminator(nn.Module):
             curr_dim = 2 ** (i + 1)
 
             block = ResBlock_D(prev_dim * n_feat, curr_dim * n_feat, downsample=not is_last)
-            self.residual_blocks.append(block)
-            self.add_module(f"res_block_{i}", block)
+            self.residual_blocks.add_module(f"res_block_{i}", block)
             if is_last:
                 last_block_factor = curr_dim
 
@@ -240,5 +240,5 @@ def test_discriminator():
 
 
 if __name__ == '__main__':
-    # test_generator()
+    test_generator()
     test_discriminator()
