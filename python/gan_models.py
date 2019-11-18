@@ -39,7 +39,7 @@ class Generator(nn.Module):
                  codes_dim,
                  n_classes=0,
                  use_attention=False,
-                 custom_dims=None):
+                 arch=None):
         super().__init__()
         self.codes_dim = codes_dim
 
@@ -47,23 +47,30 @@ class Generator(nn.Module):
         n_layers = int(np.log2(max_resolution) - 2)
         self.residual_blocks = []
         last_block_dim = 0
-        first_block_dim = 2 ** (n_layers)
+        if arch is None:
+            first_block_factor = 2 ** (n_layers)
+        else:
+            first_block_factor = arch[0]
         self.fc = nn.Sequential(
             nn.utils.spectral_norm(
-                nn.Linear(codes_dim, first_block_dim * n_feat * 4 * 4)).apply(init_weight)
+                nn.Linear(codes_dim, first_block_factor * n_feat * 4 * 4)).apply(init_weight)
         )
         #print("first_block", first_block_dim)
         #print("n_layers ", n_layers)
         for i in range(n_layers):
-            prev_dim = 2 ** (n_layers - i)
-            curr_dim = 2 ** (n_layers - i - 1)
+            if arch is None:
+                prev_factor = 2 ** (n_layers - i)
+                curr_factor = 2 ** (n_layers - i - 1)
+            else:
+                prev_factor = arch[i]
+                curr_factor = arch[i + 1]
             #print(f"block ({i}): {prev_dim}, {curr_dim}")
-            block = ResBlock_G(prev_dim * n_feat, curr_dim * n_feat, codes_dim + n_classes, upsample=True)
+            block = ResBlock_G(prev_factor * n_feat, curr_factor * n_feat, codes_dim + n_classes, upsample=True)
             self.residual_blocks.append(block)
             # add current block to the model class
             self.add_module(f'res_block_{i}', block)
             if i == n_layers - 1:
-                last_block_dim = curr_dim
+                last_block_dim = curr_factor
 
         if use_attention:
             self.attn = Attention(2 * n_feat)
@@ -240,5 +247,5 @@ def test_discriminator():
 
 
 if __name__ == '__main__':
-    # test_generator()
+    test_generator()
     test_discriminator()

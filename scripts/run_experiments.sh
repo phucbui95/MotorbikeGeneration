@@ -9,10 +9,12 @@ run_experiment() {
         --label_path=$DATA_LABEL_PATH \
         --batch_size=$BATCH_SIZE \
         --workers=$WORKERS \
+        --shuffle \
         --iteration=$ITERATION \
         --n_classes=$N_CLASSES \
         --accumulative_steps=$ACCUMULATIVE_STEPS \
         --image_size=$IMAGE_SIZE \
+        --loss=$LOSS \
         --feat_G=$FEAT_G \
         --feat_D=$FEAT_D \
         --beta1=$ADAM_BETA1 \

@@ -12,6 +12,8 @@ from gan_models import Generator, Discriminator
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from visualization import make_grid_image
+from gan_losses import get_loss_function_by_name
+
 from s3_client import S3Storage
 import matplotlib.pyplot as plt
 
@@ -65,40 +67,11 @@ class GANTrainer:
         for param in model.parameters():
             param.requires_grad = on_or_off
 
-
-class GANLoss:
-    def __init__(self):
-        self.name = "Hinge Loss"
-
-    def discriminator_loss(self, real_samples, real_labels, discriminator,
-                           generator, latent_sample_fnc):
-        real_output = discriminator(real_samples, real_labels)
-        real_loss = torch.mean(F.relu(1 - real_output))
-        real_loss.backward(retain_graph=True)
-
-        latent, fake_labels, fake_labels_ohe = latent_sample_fnc()
-        fake_samples = generator(latent, fake_labels_ohe)
-        fake_output = discriminator(fake_samples, fake_labels)
-        fake_loss = torch.mean(F.relu(1 + fake_output))
-        fake_loss.backward(retain_graph=True)
-
-        discriminator_loss = (real_loss + fake_loss) / 2.0
-        return discriminator_loss
-
-    def generator_loss(self, discriminator, generator, latent_sample_fnc):
-        latent, fake_labels, fake_labels_ohe = latent_sample_fnc()
-        fake_samples = generator(latent, fake_labels_ohe)
-        fake_output = discriminator(fake_samples, fake_labels)
-
-        generator_loss = - torch.mean(fake_output)
-        return generator_loss, latent
-
-
 class Trainer(GANTrainer):
     def __init__(self, opt, generator_fnc, discriminator_fnc):
         super().__init__(opt, generator_fnc, discriminator_fnc)
 
-        self.loss = GANLoss()
+        self.loss = get_loss_function_by_name(opt.loss)
         self.opt.name = self.opt.name + datetime.now().strftime(
             '%Y-%m-%d_%H-%M-%S')
         # visualization
@@ -150,7 +123,10 @@ class Trainer(GANTrainer):
         loss = 0
         for accumulative_index in range(self.opt.accumulative_steps):
             latent_sample_fnc = data_loader.get_latent_sample_fnc()
-            generator_loss, latent = self.loss.generator_loss(discriminator,
+            real_samples, real_labels = data_loader.next_batch()
+            generator_loss, latent = self.loss.generator_loss(real_samples,
+                                                              real_labels,
+                                                              discriminator,
                                                               generator,
                                                               latent_sample_fnc)
             loss += generator_loss.item() / float(latent.size(0))
@@ -264,6 +240,7 @@ def add_argments(arg_parser):
     arg_parser.add_argument('--latent_size', type=int, default=120)
     arg_parser.add_argument('--code_dim', type=int, default=20)
 
+    arg_parser.add_argument('--loss', type=str, default='hinge')
     arg_parser.add_argument('--feat_G', type=int, default=24)
     arg_parser.add_argument('--feat_D', type=int, default=24)
 

@@ -446,3 +446,4 @@ class CondRelativisticAverageHingeGAN(ConditionalGANLoss):
         # return the loss
         return (th.mean(th.nn.ReLU()(1 + r_f_diff))
                 + th.mean(th.nn.ReLU()(1 - f_r_diff)))
+
