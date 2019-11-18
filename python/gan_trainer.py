@@ -316,7 +316,7 @@ if __name__ == '__main__':
                              max_resolution=opt.image_size,
                              n_classes=opt.n_classes,
                              use_dropout=opt.use_dropout,
-                             arch=arch)
+                             arch=arch, opt=opt)
 
 
     trainer = Trainer(opt, get_generator_fnc, get_discriminator_fnc)

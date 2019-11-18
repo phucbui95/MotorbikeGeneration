@@ -165,8 +165,9 @@ class Discriminator(nn.Module):
                  n_classes=0,
                  use_dropout=None,
                  use_attention=False,
-                 arch=None):
+                 arch=None, opt=None):
         super().__init__()
+        self.opt = opt
         self.max_resolution = max_resolution
         self.use_dropout = use_dropout
         self.res1 = ResBlock_D(3, n_feat, downsample=True)
@@ -214,8 +215,8 @@ class Discriminator(nn.Module):
             h = self.dropout(h)
         h = torch.sum((F.leaky_relu(h, 0.2)).view(batch, -1, 4 * 4),
                       dim=2)  # GlobalSumPool ->(*,16ch)
-        outputs = self.fc(h)  # ->(*,1)
 
+        outputs = self.fc(h)  # ->(*,1)
         if label is not None:
             embed = self.embedding(label)  # ->(*,16ch)
             #print(f"label.shape={label.shape}")
@@ -223,6 +224,9 @@ class Discriminator(nn.Module):
             #print(f"h.shape={h.shape}")
             #print(f"output.shape={outputs.shape}")
             outputs += torch.sum(embed * h, dim=1, keepdim=True)  # ->(*,1)
+
+        if self.opt.loss == 'crhinge':
+            return outputs, h
 
         return outputs
 
