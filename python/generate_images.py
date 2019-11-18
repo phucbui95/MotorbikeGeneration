@@ -10,6 +10,7 @@ import numpy as np
 from torchvision.utils import save_image
 from torchvision import transforms
 import pandas as pd
+from tqdm import tqdm
 
 
 # class_distribution = [float(i) for i in class_distribution.split()]
@@ -41,6 +42,7 @@ def submission_generate_images(netG,
         os.makedirs('outputs/output_images')
 
     output_i = 0
+    pbar = tqdm(total=n_images)
     for i_batch in range(0, n_images, im_batch_size):
         gen_z, class_lbl, class_lbl_ohe = sample_latent_vector(
             class_distribution, nz, im_batch_size, device)
@@ -55,6 +57,8 @@ def submission_generate_images(netG,
             out_img = (gen_images.numpy())[i_image, ::-1, :, :].copy()
             save_image(torch.tensor(out_img), out_path)
             output_i += 1
+            pbar.update(output_i)
+    pbar.close()
     shutil.make_archive(f'outputs/images', 'zip', f'outputs/output_images')
 
 
@@ -71,7 +75,9 @@ if __name__ == '__main__':
         print("[ERROR] ckpt input required")
         exit(-1)
 
-    ckpt = torch.load(opt.ckpt)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    ckpt = torch.load(opt.ckpt, map_location=device)
     G.load_state_dict(ckpt['netGE'])
 
     df = pd.read_csv(opt.label_path)

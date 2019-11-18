@@ -24,3 +24,5 @@ models*
 result*
 sample/*
 tensorboard_log/*
+*.pkl
+checkpoint/*

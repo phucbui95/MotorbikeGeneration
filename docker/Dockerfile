@@ -10,7 +10,8 @@ COPY requirements.txt /requirements.txt
 RUN pip install -r /requirements.txt
 
 # Copy model
-COPY ./data/submission /app/result
+COPY ./data/models/exp2 /app/checkpoint
+COPY ./data/resized128_image/resized128_image_fixed/label.csv /app/data/resized128_image/resized128_image_fixed/label.csv
 
 # Copy source code
 COPY . /app/

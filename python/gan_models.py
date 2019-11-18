@@ -55,8 +55,8 @@ class Generator(nn.Module):
             nn.utils.spectral_norm(
                 nn.Linear(codes_dim, first_block_factor * n_feat * 4 * 4)).apply(init_weight)
         )
-        #print("first_block", first_block_dim)
-        #print("n_layers ", n_layers)
+        # print("first_block", first_block_factor)
+        # print("n_layers ", n_layers)
         for i in range(n_layers):
             if arch is None:
                 prev_factor = 2 ** (n_layers - i)
@@ -64,9 +64,8 @@ class Generator(nn.Module):
             else:
                 prev_factor = arch[i]
                 curr_factor = arch[i + 1]
-            #print(f"block ({i}): {prev_dim}, {curr_dim}")
+            # print(f"block ({i}): {prev_factor}, {curr_factor}")
             block = ResBlock_G(prev_factor * n_feat, curr_factor * n_feat, codes_dim + n_classes, upsample=True)
-            # self.residual_blocks.append(block)
             # add current block to the model class
             self.residual_blocks.add_module(f'res_block_{i}', block)
             if i == n_layers - 1:
@@ -75,7 +74,7 @@ class Generator(nn.Module):
         if use_attention:
             self.attn = Attention(2 * n_feat)
 
-        #print("last_layer ", last_block_dim)
+        # print("last_layer ", last_block_dim)
         self.to_rgb = nn.Sequential(
             # nn.BatchNorm2d(2*n_feat).apply(init_weight),
             nn.LeakyReLU(),
@@ -112,7 +111,8 @@ def test_generator():
         max_resolution=res,
         codes_dim=32,
         n_classes=n_classes,
-        use_attention=False
+        use_attention=False,
+        arch=[16, 16, 8, 4, 2, 1]
     )
 
     def count_parameters(model):
@@ -160,9 +160,12 @@ class ResBlock_D(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, n_feat, max_resolution, n_classes=0,
+    def __init__(self, n_feat,
+                 max_resolution,
+                 n_classes=0,
                  use_dropout=None,
-                 use_attention=False):
+                 use_attention=False,
+                 arch=None):
         super().__init__()
         self.max_resolution = max_resolution
         self.use_dropout = use_dropout
@@ -174,15 +177,20 @@ class Discriminator(nn.Module):
         self.residual_blocks = nn.ModuleList([])
         n_layers = int(np.log2(self.max_resolution)) - 2
         last_block_factor = 0
+
         for i in range(n_layers):
             is_last = (i == n_layers - 1)
-            prev_dim = 2 ** (i)
-            curr_dim = 2 ** (i + 1)
-
-            block = ResBlock_D(prev_dim * n_feat, curr_dim * n_feat, downsample=not is_last)
+            if arch is None:
+                prev_factor = 2 ** (i)
+                curr_factor = 2 ** (i + 1)
+            else:
+                prev_factor = arch[i]
+                curr_factor = arch[i + 1]
+            # print(f"block ({i}): {prev_factor}, {curr_factor}")
+            block = ResBlock_D(prev_factor * n_feat, curr_factor * n_feat, downsample=not is_last)
             self.residual_blocks.add_module(f"res_block_{i}", block)
             if is_last:
-                last_block_factor = curr_dim
+                last_block_factor = curr_factor
 
         if self.use_dropout is not None:
             self.dropout = nn.Dropout(self.use_dropout)
@@ -225,7 +233,8 @@ def test_discriminator():
         n_feat=32,
         max_resolution=res,
         n_classes=n_classes,
-        use_attention=False
+        use_attention=False,
+        arch=[1, 2, 4, 8, 16, 16]
     )
 
     def count_parameters(model):

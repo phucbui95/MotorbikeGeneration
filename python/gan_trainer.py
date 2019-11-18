@@ -302,17 +302,21 @@ if __name__ == '__main__':
 
 
     def get_generator_fnc(opt):
+        arch = [16, 16, 8, 4, 2, 1]
         return Generator(n_feat=opt.feat_G,
                          max_resolution=opt.image_size,
                          codes_dim=opt.code_dim,
-                         n_classes=opt.n_classes)
+                         n_classes=opt.n_classes,
+                         arch=arch)
 
 
     def get_discriminator_fnc(opt):
+        arch = [1, 2, 4, 8, 16, 16]
         return Discriminator(n_feat=opt.feat_D,
                              max_resolution=opt.image_size,
                              n_classes=opt.n_classes,
-                             use_dropout=opt.use_dropout)
+                             use_dropout=opt.use_dropout,
+                             arch=arch)
 
 
     trainer = Trainer(opt, get_generator_fnc, get_discriminator_fnc)
