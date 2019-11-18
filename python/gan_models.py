@@ -45,7 +45,7 @@ class Generator(nn.Module):
 
         # construct residual blocks
         n_layers = int(np.log2(max_resolution) - 2)
-        self.residual_blocks = []
+        self.residual_blocks = nn.ModuleList([])
         last_block_dim = 0
         if arch is None:
             first_block_factor = 2 ** (n_layers)
@@ -68,7 +68,7 @@ class Generator(nn.Module):
             block = ResBlock_G(prev_factor * n_feat, curr_factor * n_feat, codes_dim + n_classes, upsample=True)
             self.residual_blocks.append(block)
             # add current block to the model class
-            self.add_module(f'res_block_{i}', block)
+            self.residual_blocks.add_module(f'res_block_{i}', block)
             if i == n_layers - 1:
                 last_block_dim = curr_factor
 
@@ -171,7 +171,7 @@ class Discriminator(nn.Module):
         if use_attention:
             self.attn = Attention(n_feat)
 
-        self.residual_blocks = []
+        self.residual_blocks = nn.ModuleList([])
         n_layers = int(np.log2(self.max_resolution)) - 2
         last_block_factor = 0
         for i in range(n_layers):
@@ -180,8 +180,7 @@ class Discriminator(nn.Module):
             curr_dim = 2 ** (i + 1)
 
             block = ResBlock_D(prev_dim * n_feat, curr_dim * n_feat, downsample=not is_last)
-            self.residual_blocks.append(block)
-            self.add_module(f"res_block_{i}", block)
+            self.residual_blocks.add_module(f"res_block_{i}", block)
             if is_last:
                 last_block_factor = curr_dim
 
