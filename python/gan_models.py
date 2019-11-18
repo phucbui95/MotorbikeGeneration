@@ -66,7 +66,7 @@ class Generator(nn.Module):
                 curr_factor = arch[i + 1]
             #print(f"block ({i}): {prev_dim}, {curr_dim}")
             block = ResBlock_G(prev_factor * n_feat, curr_factor * n_feat, codes_dim + n_classes, upsample=True)
-            self.residual_blocks.append(block)
+            # self.residual_blocks.append(block)
             # add current block to the model class
             self.residual_blocks.add_module(f'res_block_{i}', block)
             if i == n_layers - 1:
