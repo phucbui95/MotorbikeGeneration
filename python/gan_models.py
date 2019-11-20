@@ -7,7 +7,6 @@ import math
 
 from layers import init_weight, conv1x1, conv3x3, Attention, ConditionalNorm
 
-
 # BigGAN + leaky_relu
 class ResBlock_G(nn.Module):
     def __init__(self, in_channel, out_channel, condition_dim, upsample=True):

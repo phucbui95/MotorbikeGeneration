@@ -25,5 +25,6 @@ run_experiment() {
         --logging_steps=$LOGGING_STEPS \
         --checkpoint_steps=$CHECKPOINT_STEPS \
         --checkpoint_mode=$CHECKPOINT_MODE \
-        --ckpt=$CKPT
+        --ckpt=$CKPT \
+        --use_attention=$USE_ATTENTION
 }

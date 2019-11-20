@@ -57,7 +57,7 @@ def submission_generate_images(netG,
             out_img = (gen_images.numpy())[i_image, ::-1, :, :].copy()
             save_image(torch.tensor(out_img), out_path)
             output_i += 1
-            pbar.update(output_i)
+            pbar.update(1)
     pbar.close()
     shutil.make_archive(f'outputs/images', 'zip', f'outputs/output_images')
 
@@ -80,8 +80,25 @@ if __name__ == '__main__':
     ckpt = torch.load(opt.ckpt, map_location=device)
     G.load_state_dict(ckpt['netGE'])
 
-    df = pd.read_csv(opt.label_path)
-    class_dist = (df['class'].value_counts() / len(df)).sort_index().values
-
+    if os.path.exists(opt.label_path):
+        df = pd.read_csv(opt.label_path)
+        class_dist = (df['class'].value_counts() / len(df)).sort_index().values
+    else:
+        class_dist = [2.20957159e-02, 7.83481281e-02, 3.70513315e-02,
+                      3.45426476e-02,
+                      3.64724045e-02, 5.78927055e-03, 7.81551525e-03,
+                      1.04206870e-02,
+                      6.04978773e-02, 8.61636434e-02, 8.87688151e-03,
+                      2.93323041e-02,
+                      3.58934774e-02, 2.50868391e-03, 9.56194519e-02,
+                      4.45773832e-02,
+                      5.11385565e-03, 2.88498649e-02, 1.11153995e-01,
+                      9.64878425e-05,
+                      4.39984562e-02, 4.82439213e-04, 2.69201081e-02,
+                      1.73678117e-03,
+                      1.52354303e-01, 1.92975685e-04, 6.75414898e-04,
+                      4.82439213e-03,
+                      4.72790428e-03, 2.28676187e-02
+                      ]
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     submission_generate_images(G, class_dist, device=device)
