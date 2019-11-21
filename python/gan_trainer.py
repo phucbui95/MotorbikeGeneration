@@ -302,7 +302,7 @@ if __name__ == '__main__':
     if opt.use_dropout is None or opt.use_dropout < 0:
         opt.use_dropout = None
 
-    opt.use_attention = True if opt.use_attention == 1 else False
+    opt.use_attention = True if opt.use_attention == '1' else False
 
     def get_generator_fnc(opt):
         arch = [16, 16, 8, 4, 2, 1]
