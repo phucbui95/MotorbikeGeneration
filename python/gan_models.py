@@ -7,6 +7,7 @@ import math
 
 from layers import init_weight, conv1x1, conv3x3, Attention, ConditionalNorm
 
+
 # BigGAN + leaky_relu
 class ResBlock_G(nn.Module):
     def __init__(self, in_channel, out_channel, condition_dim, upsample=True):
@@ -52,7 +53,9 @@ class Generator(nn.Module):
             first_block_factor = arch[0]
         self.fc = nn.Sequential(
             nn.utils.spectral_norm(
-                nn.Linear(codes_dim, first_block_factor * n_feat * 4 * 4)).apply(init_weight)
+                nn.Linear(codes_dim,
+                          first_block_factor * n_feat * 4 * 4)).apply(
+                init_weight)
         )
         # print("first_block", first_block_factor)
         # print("n_layers ", n_layers)
@@ -64,7 +67,8 @@ class Generator(nn.Module):
                 prev_factor = arch[i]
                 curr_factor = arch[i + 1]
             # print(f"block ({i}): {prev_factor}, {curr_factor}")
-            block = ResBlock_G(prev_factor * n_feat, curr_factor * n_feat, codes_dim + n_classes, upsample=True)
+            block = ResBlock_G(prev_factor * n_feat, curr_factor * n_feat,
+                               codes_dim + codes_dim, upsample=True)
             # add current block to the model class
             self.residual_blocks.add_module(f'res_block_{i}', block)
             if i == n_layers - 1:
@@ -77,9 +81,14 @@ class Generator(nn.Module):
         self.to_rgb = nn.Sequential(
             # nn.BatchNorm2d(2*n_feat).apply(init_weight),
             nn.LeakyReLU(),
-            nn.utils.spectral_norm(conv3x3(last_block_dim * n_feat, 3)).apply(init_weight),
+            nn.utils.spectral_norm(conv3x3(last_block_dim * n_feat, 3)).apply(
+                init_weight),
             nn.Tanh()
         )
+
+        self.embedding = nn.Embedding(num_embeddings=n_classes,
+                                      embedding_dim=self.codes_dim).apply(
+            init_weight)
 
     def forward(self, z, label_ohe):
         '''
@@ -88,7 +97,7 @@ class Generator(nn.Module):
         '''
         batch = z.size(0)
         z = z.squeeze()
-        label_ohe = label_ohe.squeeze()
+        label_ohe = self.embedding(label_ohe)
         codes = torch.split(z, self.codes_dim, dim=1)
 
         x = self.fc(codes[0])  # ->(*,16ch*4*4)
@@ -101,6 +110,7 @@ class Generator(nn.Module):
             x = block(x, condition)
         x = self.to_rgb(x)
         return x
+
 
 def test_generator():
     res = 128
@@ -164,9 +174,8 @@ class Discriminator(nn.Module):
                  n_classes=0,
                  use_dropout=None,
                  use_attention=False,
-                 arch=None, opt=None):
+                 arch=None):
         super().__init__()
-        self.opt = opt
         self.max_resolution = max_resolution
         self.use_dropout = use_dropout
         self.res1 = ResBlock_D(3, n_feat, downsample=True)
@@ -187,7 +196,8 @@ class Discriminator(nn.Module):
                 prev_factor = arch[i]
                 curr_factor = arch[i + 1]
             # print(f"block ({i}): {prev_factor}, {curr_factor}")
-            block = ResBlock_D(prev_factor * n_feat, curr_factor * n_feat, downsample=not is_last)
+            block = ResBlock_D(prev_factor * n_feat, curr_factor * n_feat,
+                               downsample=not is_last)
             self.residual_blocks.add_module(f"res_block_{i}", block)
             if is_last:
                 last_block_factor = curr_factor
@@ -195,7 +205,8 @@ class Discriminator(nn.Module):
         if self.use_dropout is not None:
             self.dropout = nn.Dropout(self.use_dropout)
 
-        self.fc = nn.utils.spectral_norm(nn.Linear(last_block_factor * n_feat, 1)).apply(
+        self.fc = nn.utils.spectral_norm(
+            nn.Linear(last_block_factor * n_feat, 1)).apply(
             init_weight)
         self.embedding = nn.Embedding(num_embeddings=n_classes,
                                       embedding_dim=last_block_factor * n_feat).apply(
@@ -208,30 +219,28 @@ class Discriminator(nn.Module):
             h = self.attn(h)
 
         for block_index, block in enumerate(self.residual_blocks):
-            #print(f"block_{block_index}: h.shape={h.shape}")
+            # print(f"block_{block_index}: h.shape={h.shape}")
             h = block(h)
         if self.use_dropout is not None:
             h = self.dropout(h)
         h = torch.sum((F.leaky_relu(h, 0.2)).view(batch, -1, 4 * 4),
                       dim=2)  # GlobalSumPool ->(*,16ch)
-
         outputs = self.fc(h)  # ->(*,1)
+
         if label is not None:
             embed = self.embedding(label)  # ->(*,16ch)
-            #print(f"label.shape={label.shape}")
-            #print(f"embedding_output= {embed.shape}")
-            #print(f"h.shape={h.shape}")
-            #print(f"output.shape={outputs.shape}")
+            # print(f"label.shape={label.shape}")
+            # print(f"embedding_output= {embed.shape}")
+            # print(f"h.shape={h.shape}")
+            # print(f"output.shape={outputs.shape}")
             outputs += torch.sum(embed * h, dim=1, keepdim=True)  # ->(*,1)
-
-        if self.opt.loss == 'crhinge':
-            return outputs, h
 
         return outputs
 
+
 def test_discriminator():
     res = 128
-    n_classes=30
+    n_classes = 30
     d = Discriminator(
         n_feat=32,
         max_resolution=res,
