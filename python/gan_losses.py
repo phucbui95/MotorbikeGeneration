@@ -55,7 +55,7 @@ class CondHingeGAN:
         real_loss.backward(retain_graph=True)
 
         latent, fake_labels, fake_labels_ohe = latent_sample_fnc()
-        fake_samples = generator(latent, fake_labels_ohe)
+        fake_samples = generator(latent, fake_labels)
         fake_output = discriminator(fake_samples, fake_labels)
         fake_loss = torch.mean(F.relu(1 + fake_output))
         fake_loss.backward(retain_graph=True)
@@ -66,7 +66,7 @@ class CondHingeGAN:
     def generator_loss(self, real_samples, real_labels, discriminator,
                        generator, latent_sample_fnc):
         latent, fake_labels, fake_labels_ohe = latent_sample_fnc()
-        fake_samples = generator(latent, fake_labels_ohe)
+        fake_samples = generator(latent, fake_labels)
         fake_output = discriminator(fake_samples, fake_labels)
 
         generator_loss = - torch.mean(fake_output)

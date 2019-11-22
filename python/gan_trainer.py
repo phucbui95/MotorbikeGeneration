@@ -144,9 +144,9 @@ class Trainer(GANTrainer):
         """
         latent_samplers = data_loader.get_latent_sample_fnc(
             batch_size=num_samples)
-        noise, _, labels_ohe = latent_samplers()
+        noise, labels, _ = latent_samplers()
         with torch.no_grad():
-            generated_images = self.netG(noise, labels_ohe)
+            generated_images = self.netG(noise, labels)
             generated_images = generated_images * 0.5 + 0.5
         # return generated_images
         sample_images = np.transpose(generated_images.cpu().numpy(),
@@ -233,18 +233,17 @@ def add_argments(arg_parser):
     arg_parser.add_argument('--batch_size', type=int, default=32)
     arg_parser.add_argument('--workers', type=int, default=0)
     arg_parser.add_argument('--shuffle', action='store_true')
-    arg_parser.add_argument('--in_memory', action='store_true')
 
     # model configure
     arg_parser.add_argument('--n_classes', type=int, default=30)
     arg_parser.add_argument('--accumulative_steps', type=int, default=2)
     arg_parser.add_argument('--latent_size', type=int, default=120)
     arg_parser.add_argument('--code_dim', type=int, default=20)
+    arg_parser.add_argument('--use_attention', type=str, default='')
 
     arg_parser.add_argument('--loss', type=str, default='hinge')
     arg_parser.add_argument('--feat_G', type=int, default=24)
     arg_parser.add_argument('--feat_D', type=int, default=24)
-    arg_parser.add_argument('--use_attention', type=str, default=None)
 
     # Optimizer hyperparameters
     arg_parser.add_argument('--iteration', type=int, default=100)
@@ -293,7 +292,7 @@ if __name__ == '__main__':
     # test_sample_latent_vector()
     base_tfs, additional_tfs = get_transforms(image_size=opt.image_size)
     ds = MotorbikeWithLabelsDataset(opt.path, opt.label_path, base_tfs,
-                                    additional_tfs, in_memory=opt.in_memory)
+                                    additional_tfs, in_memory=False)
     dl = MotorbikeDataloader(opt, ds)
     class_dist = dl.dataset.get_class_distributions()
 
@@ -302,7 +301,7 @@ if __name__ == '__main__':
     if opt.use_dropout is None or opt.use_dropout < 0:
         opt.use_dropout = None
 
-    opt.use_attention = True if opt.use_attention == '1' else False
+    opt.use_attention = opt.use_attention == '1'
 
     def get_generator_fnc(opt):
         arch = [16, 16, 8, 4, 2, 1]
@@ -310,8 +309,8 @@ if __name__ == '__main__':
                          max_resolution=opt.image_size,
                          codes_dim=opt.code_dim,
                          n_classes=opt.n_classes,
-                         use_attention=opt.use_attention,
-                         arch=arch)
+                         arch=arch,
+                         use_attention=opt.use_attention)
 
 
     def get_discriminator_fnc(opt):
@@ -320,9 +319,7 @@ if __name__ == '__main__':
                              max_resolution=opt.image_size,
                              n_classes=opt.n_classes,
                              use_dropout=opt.use_dropout,
-                             arch=arch,
-                             use_attention=opt.use_attention,
-                             opt=opt)
+                             arch=arch)
 
 
     trainer = Trainer(opt, get_generator_fnc, get_discriminator_fnc)
