@@ -16,7 +16,7 @@ from gan_losses import get_loss_function_by_name
 
 from s3_client import S3Storage
 import matplotlib.pyplot as plt
-
+import torch.nn as nn
 
 class GANTrainer:
     def __init__(self, opt, generator_fnc, discriminator_fnc):
@@ -161,8 +161,15 @@ class Trainer(GANTrainer):
         fixed_noise, fixed_aux_labels, fixed_aux_labels_ohe = data_loader.latent_sample()
 
         generator = self.netGE
-        running_generator = self.netG.to(device)
-        discriminator = self.netD.to(device)
+        running_generator = self.netG
+        discriminator = self.netD
+
+        if torch.cuda.device_count() > 1:
+            running_generator = nn.DataParallel(running_generator)
+            discriminator = nn.DataParallel(discriminator)
+
+        running_generator.to(device)
+        discriminator.to(device)
 
         generator.train()
         discriminator.train()
