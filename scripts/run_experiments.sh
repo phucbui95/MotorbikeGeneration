@@ -26,7 +26,7 @@ run_experiment() {
         --checkpoint_steps=$CHECKPOINT_STEPS \
         --checkpoint_mode=$CHECKPOINT_MODE \
         --ckpt=$CKPT \
-        --use_attention=$USE_ATTENTION
+        --use_attention=$USE_ATTENTION \
         --code_dim=$CODE_DIM \
         --LATENT_SIZE=$LATENT_SIZE
 }
