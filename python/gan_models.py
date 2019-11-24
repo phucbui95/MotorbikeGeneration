@@ -6,20 +6,20 @@ import numpy as np
 import math
 
 from layers import init_weight, conv1x1, conv3x3, Attention, ConditionalNorm
-
+from layers import SyncBN2d
 
 # BigGAN + leaky_relu
 class ResBlock_G(nn.Module):
-    def __init__(self, in_channel, out_channel, condition_dim, upsample=True):
+    def __init__(self, in_channel, out_channel, condition_dim, cross_replica=False, upsample=True):
         super().__init__()
-        self.cbn1 = ConditionalNorm(in_channel, condition_dim)
+        self.cbn1 = ConditionalNorm(in_channel, condition_dim, cross_replica)
         self.upsample = nn.Sequential()
         if upsample:
             self.upsample.add_module('upsample', nn.Upsample(scale_factor=2,
                                                              mode='nearest'))
         self.conv3x3_1 = nn.utils.spectral_norm(
             conv3x3(in_channel, out_channel)).apply(init_weight)
-        self.cbn2 = ConditionalNorm(out_channel, condition_dim)
+        self.cbn2 = ConditionalNorm(out_channel, condition_dim, cross_replica)
         self.conv3x3_2 = nn.utils.spectral_norm(
             conv3x3(out_channel, out_channel)).apply(init_weight)
         self.conv1x1 = nn.utils.spectral_norm(
@@ -35,14 +35,19 @@ class ResBlock_G(nn.Module):
 
 
 class Generator(nn.Module):
-    def __init__(self, n_feat, max_resolution,
+    def __init__(self, n_feat,
+                 max_resolution,
                  codes_dim,
                  n_classes=0,
                  use_attention=False,
-                 arch=None):
+                 arch=None,
+                 cross_replica=False,
+                 rgb_bn=False,
+                 use_embedding=True):
         super().__init__()
         self.codes_dim = codes_dim
-
+        self.use_embedding= use_embedding
+        self.n_classes = n_classes
         # construct residual blocks
         n_layers = int(np.log2(max_resolution) - 2)
         self.residual_blocks = nn.ModuleList([])
@@ -68,7 +73,7 @@ class Generator(nn.Module):
                 curr_factor = arch[i + 1]
             # print(f"block ({i}): {prev_factor}, {curr_factor}")
             block = ResBlock_G(prev_factor * n_feat, curr_factor * n_feat,
-                               codes_dim + codes_dim, upsample=True)
+                               codes_dim + codes_dim, cross_replica=cross_replica,  upsample=True)
             # add current block to the model class
             self.residual_blocks.add_module(f'res_block_{i}', block)
             if i == n_layers - 1:
@@ -78,17 +83,24 @@ class Generator(nn.Module):
             self.attn = Attention(2 * n_feat)
 
         # print("last_layer ", last_block_dim)
-        self.to_rgb = nn.Sequential(
-            # nn.BatchNorm2d(2*n_feat).apply(init_weight),
+        _to_rgb = [
+            # nn.BatchNorm2d(2 * n_feat).apply(init_weight),
             nn.LeakyReLU(),
             nn.utils.spectral_norm(conv3x3(last_block_dim * n_feat, 3)).apply(
                 init_weight),
             nn.Tanh()
+        ]
+
+        bn_layer = SyncBN2d if cross_replica else nn.BatchNorm2d
+        if rgb_bn:
+            _to_rgb.insert(0, bn_layer(last_block_dim * n_feat))
+
+        self.to_rgb = nn.Sequential(
+            *_to_rgb
         )
 
         self.embedding = nn.Embedding(num_embeddings=n_classes,
-                                      embedding_dim=self.codes_dim).apply(
-            init_weight)
+                                      embedding_dim=self.codes_dim).apply(init_weight)
 
     def forward(self, z, label_ohe):
         '''
@@ -97,7 +109,12 @@ class Generator(nn.Module):
         '''
         batch = z.size(0)
         z = z.squeeze()
-        label_ohe = self.embedding(label_ohe)
+        if self.use_embedding:
+            label_ohe = self.embedding(label_ohe)
+        else:
+            assert label_ohe.shape[1] == self.n_classes
+            pass
+
         codes = torch.split(z, self.codes_dim, dim=1)
 
         x = self.fc(codes[0])  # ->(*,16ch*4*4)
@@ -121,7 +138,8 @@ def test_generator():
         codes_dim=32,
         n_classes=n_classes,
         use_attention=False,
-        arch=[16, 16, 8, 4, 2, 1]
+        arch=[16, 16, 8, 4, 2, 1],
+        use_embedding=True
     )
 
     def count_parameters(model):
@@ -133,9 +151,42 @@ def test_generator():
     print("{:=^90}".format(''))
 
     inp = torch.randn((2, 32 * 8))
-    ohe = torch.randn((2, n_classes))
+
+    lb = torch.randint(0, n_classes, (2,))
     with torch.no_grad():
-        output = g(inp, ohe)
+        output = g(inp, lb)
+    print("Output shape: ", output.shape)
+
+    assert output.shape[2] == res
+
+def test_generator_with_sync_bn():
+    res = 128
+    n_classes = 30
+    g = Generator(
+        n_feat=32,
+        max_resolution=res,
+        codes_dim=32,
+        n_classes=n_classes,
+        use_attention=False,
+        arch=[16, 16, 8, 4, 2, 1],
+        use_embedding=True,
+        cross_replica=True,
+        rgb_bn=True
+    )
+
+    def count_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+    print("Numer of parameters: ", count_parameters(g))
+    print("{:=^90}".format('Model'))
+    print(g)
+    print("{:=^90}".format(''))
+
+    inp = torch.randn((2, 32 * 8))
+
+    lb = torch.randint(0, n_classes, (2,))
+    with torch.no_grad():
+        output = g(inp, lb)
     print("Output shape: ", output.shape)
 
     assert output.shape[2] == res
@@ -267,5 +318,6 @@ def test_discriminator():
 
 
 if __name__ == '__main__':
-    test_generator()
-    test_discriminator()
+    test_generator_with_sync_bn()
+    # test_generator()
+    # test_discriminator()

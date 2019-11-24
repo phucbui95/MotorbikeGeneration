@@ -158,6 +158,6 @@ def get_loss_function_by_name(name):
     elif name == 'rahinge':
         return CondRelativisticAverageHingeGAN()
     elif name == 'crhinge':
-        return CondHingeGANWithCR(tfs=Cutout(n_holes=2, length=8), gamma=10)
+        return CondHingeGANWithCR(tfs=Cutout(n_holes=5, length=4), gamma=2)
     else:
         raise Exception('Unknow loss')

@@ -95,8 +95,9 @@ class Trainer(GANTrainer):
                                        count_parameters(self.netD)))
 
     def __del__(self):
-        self.board.close()
+
         try:
+            self.board.close()
             del self.s3storage
         except:
             pass
@@ -164,6 +165,8 @@ class Trainer(GANTrainer):
         running_generator = self.netG
         discriminator = self.netD
 
+        print(generator)
+
         if torch.cuda.device_count() > 1:
             running_generator = nn.DataParallel(running_generator)
             discriminator = nn.DataParallel(discriminator)
@@ -214,7 +217,7 @@ class Trainer(GANTrainer):
                 fname = f'{dir}/sample_{iter}.png'
                 plt.imsave(fname, sample_image)
 
-            if iter % self.opt.checkpoint_steps == 0:
+            if iter != 0 and iter % self.opt.checkpoint_steps == 0:
                 checkpoint_dir = os.path.join(self.opt.checkpoint_dir,
                                               self.opt.name)
                 if not os.path.exists(checkpoint_dir):
@@ -246,7 +249,9 @@ def add_argments(arg_parser):
     arg_parser.add_argument('--accumulative_steps', type=int, default=2)
     arg_parser.add_argument('--latent_size', type=int, default=120)
     arg_parser.add_argument('--code_dim', type=int, default=20)
+
     arg_parser.add_argument('--use_attention', type=str, default='')
+    arg_parser.add_argument('--cross_replica', type=str, default=0)
 
     arg_parser.add_argument('--loss', type=str, default='hinge')
     arg_parser.add_argument('--feat_G', type=int, default=24)
@@ -309,6 +314,8 @@ if __name__ == '__main__':
         opt.use_dropout = None
 
     opt.use_attention = opt.use_attention == '1'
+    opt.cross_replica = opt.cross_replica == '1'
+    use_rgb_bn = False
 
     def get_generator_fnc(opt):
         arch = [16, 16, 8, 4, 2, 1]
@@ -317,7 +324,9 @@ if __name__ == '__main__':
                          codes_dim=opt.code_dim,
                          n_classes=opt.n_classes,
                          arch=arch,
-                         use_attention=opt.use_attention)
+                         use_attention=opt.use_attention,
+                         cross_replica=opt.cross_replica,
+                         rgb_bn=use_rgb_bn)
 
 
     def get_discriminator_fnc(opt):

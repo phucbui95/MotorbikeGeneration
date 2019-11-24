@@ -5,6 +5,8 @@ echo "Prepare data"
 
 install_tools() {
     apt-get install -y wget
+    pip install awscli
+    pip install tensorflow-gpu
 }
 download_source() {
     git init
@@ -40,8 +42,9 @@ download_preprocess
 echo "Downloading data"
 sh download.sh
 
+# allow scripts
 echo "Starting jupyter notebook"
-cd /app
+cd /app || exit
 nohup sh start_nb.sh &
 nohup tensorboard --logdir=tensorboard_log &
 

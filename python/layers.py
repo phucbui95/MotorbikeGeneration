@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
-from sync_batchnorm import SynchronizedBatchNorm2d
+from sync_batchnorm import SynchronizedBatchNorm2d as SyncBN2d
 
 def conv3x3(in_channel, out_channel):  # not change resolusion
     return nn.Conv2d(in_channel, out_channel,
@@ -66,16 +66,13 @@ class Attention(nn.Module):
 
 
 class ConditionalNorm(nn.Module):
-    def __init__(self, in_channel, n_condition):
+    def __init__(self, in_channel, n_condition, cross_replica=False):
         super().__init__()
-        # if self.cross_replica:
-        #     self.bn = SyncBN2d(output_size, eps=self.eps,
-        #                        momentum=self.momentum, affine=False)
-        # elif mybn:
-        #     self.bn = myBN(output_size, self.eps, self.momentum)
-
-        self.bn = nn.BatchNorm2d(in_channel,
-                                 affine=False)  # no learning parameters
+        if cross_replica:
+            self.bn = SyncBN2d(in_channel, affine=False)
+        else:
+            self.bn = nn.BatchNorm2d(in_channel,
+                                     affine=False)  # no learning parameters
 
         self.embed = nn.Linear(n_condition, in_channel * 2)
 
