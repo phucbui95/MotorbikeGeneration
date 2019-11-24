@@ -28,5 +28,5 @@ run_experiment() {
         --ckpt=$CKPT \
         --use_attention=$USE_ATTENTION \
         --code_dim=$CODE_DIM \
-        --LATENT_SIZE=$LATENT_SIZE
+        --latent_size=$LATENT_SIZE
 }
