@@ -65,10 +65,22 @@ if __name__ == '__main__':
     opt = parse_arguments()
     display_argments(opt)
 
+    if opt.use_dropout is None or opt.use_dropout < 0:
+        opt.use_dropout = None
+
+    opt.use_attention = opt.use_attention == '1'
+    opt.cross_replica = opt.cross_replica == '1'
+
+    arch = [16, 16, 8, 4, 2, 1]
+
     G = Generator(n_feat=opt.feat_G,
-                  max_resolution=opt.image_size,
-                  codes_dim=opt.code_dim,
-                  n_classes=opt.n_classes)
+                 max_resolution=opt.image_size,
+                 codes_dim=opt.code_dim,
+                 n_classes=opt.n_classes,
+                 arch=arch,
+                 use_attention=opt.use_attention,
+                 cross_replica=opt.cross_replica,
+                 rgb_bn=False)
 
     if opt.ckpt is None:
         print("[ERROR] ckpt input required")
@@ -100,4 +112,4 @@ if __name__ == '__main__':
                       4.72790428e-03, 2.28676187e-02
                       ]
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    submission_generate_images(G, class_dist, device=device)
+    submission_generate_images(G, class_dist, nz=opt.latent_size,  device=device)

@@ -10,11 +10,15 @@ COPY requirements.txt /requirements.txt
 RUN pip install -r /requirements.txt
 
 # Copy model
-COPY ./exp2 /app/checkpoint
+COPY ./final_model /app/checkpoint
+COPY ./scripts/predict.sh /model/predict.sh
+
+RUN rm -rf keys
+RUN rm -rf kaggle.json
+RUN mkdir -p /app/outputs
+RUN ln -fs /app/outputs /result
+RUN ln -fs /data /app/data
 
 # Copy source code
 COPY . /app/
 WORKDIR /app
-
-
-EXPOSE 22 8080
