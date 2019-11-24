@@ -225,10 +225,12 @@ class Discriminator(nn.Module):
                  n_classes=0,
                  use_dropout=None,
                  use_attention=False,
-                 arch=None):
+                 arch=None,
+                 return_features=False):
         super().__init__()
         self.max_resolution = max_resolution
         self.use_dropout = use_dropout
+        self.return_features = return_features
         self.res1 = ResBlock_D(3, n_feat, downsample=True)
         self.use_attention = use_attention
         if use_attention:
@@ -285,6 +287,8 @@ class Discriminator(nn.Module):
             # print(f"h.shape={h.shape}")
             # print(f"output.shape={outputs.shape}")
             outputs += torch.sum(embed * h, dim=1, keepdim=True)  # ->(*,1)
+        if self.return_features:
+            return outputs, h
 
         return outputs
 

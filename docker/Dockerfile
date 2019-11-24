@@ -16,7 +16,6 @@ COPY ./scripts/predict.sh /model/predict.sh
 RUN rm -rf keys
 RUN rm -rf kaggle.json
 RUN mkdir -p /app/outputs
-RUN ln -fs /app/outputs /result
 RUN ln -fs /data /app/data
 
 # Copy source code

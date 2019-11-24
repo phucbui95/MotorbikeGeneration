@@ -7,6 +7,7 @@ import cv2
 from PIL import Image
 from tqdm import tqdm_notebook
 import shutil
+import argparse
 
 def evaluation(submission_file):
     import zipfile
@@ -33,9 +34,12 @@ def evaluation(submission_file):
     for idx, path in tqdm_notebook(enumerate(img_paths), total=len(img_paths)):
         img_arr = cv2.imread(path)
         img_arr = cv2.resize(img_arr, (128, 128), cv2.INTER_BITS)
-        image_arr = img_arr[..., ::-1]
+        img_arr = img_arr[..., ::-1]
         img_arr = np.array(img_arr)
         img_np[idx] = img_arr
         
     score = mifid.compute_mifid(img_np)
     return score
+
+if __name__ == '__main__':
+    pass
