@@ -31,9 +31,8 @@ def sample_latent_vector(class_distributions, latent_size, batch_size, device):
 def submission_generate_images(netG,
                                class_distribution,
                                n_images=10000,
-                               device=None):
+                               device=None, nz=120):
     im_batch_size = 50
-    nz = 120
     if device is None:
         device = torch.device('cpu')
 
@@ -46,7 +45,7 @@ def submission_generate_images(netG,
     for i_batch in range(0, n_images, im_batch_size):
         gen_z, class_lbl, class_lbl_ohe = sample_latent_vector(
             class_distribution, nz, im_batch_size, device)
-        gen_images = netG(gen_z, class_lbl_ohe)
+        gen_images = netG(gen_z, class_lbl)
 
         gen_images = gen_images.to(
             "cpu").clone().detach()  # shape=(*,3,h,w), torch.Tensor
