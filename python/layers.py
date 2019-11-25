@@ -105,16 +105,16 @@ class EMA():
 
 # BigGAN + leaky_relu
 class ResBlock_G(nn.Module):
-    def __init__(self, in_channel, out_channel, condition_dim, upsample=True):
+    def __init__(self, in_channel, out_channel, condition_dim, upsample=True, cross_replica=False):
         super().__init__()
-        self.cbn1 = ConditionalNorm(in_channel, condition_dim)
+        self.cbn1 = ConditionalNorm(in_channel, condition_dim, cross_replica=cross_replica)
         self.upsample = nn.Sequential()
         if upsample:
             self.upsample.add_module('upsample', nn.Upsample(scale_factor=2,
                                                              mode='nearest'))
         self.conv3x3_1 = nn.utils.spectral_norm(
             conv3x3(in_channel, out_channel)).apply(init_weight)
-        self.cbn2 = ConditionalNorm(out_channel, condition_dim)
+        self.cbn2 = ConditionalNorm(out_channel, condition_dim, cross_replica=cross_replica)
         self.conv3x3_2 = nn.utils.spectral_norm(
             conv3x3(out_channel, out_channel)).apply(init_weight)
         self.conv1x1 = nn.utils.spectral_norm(

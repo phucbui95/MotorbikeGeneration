@@ -251,7 +251,7 @@ def add_argments(arg_parser):
     arg_parser.add_argument('--code_dim', type=int, default=20)
 
     arg_parser.add_argument('--use_attention', type=str, default='')
-    arg_parser.add_argument('--cross_replica', type=str, default=0)
+    arg_parser.add_argument('--cross_replica', type=str, default='1')
 
     arg_parser.add_argument('--loss', type=str, default='hinge')
     arg_parser.add_argument('--feat_G', type=int, default=24)
