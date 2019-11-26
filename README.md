@@ -1,7 +1,12 @@
 # MotorbikeGeneration
 
 ## Installation
+``` bash
+./on_startup.sh
+```
 
 ## Model
-
-## Evaluation
+```
+chmod +x scripts/*.sh
+./scripts/run_[name experiment].sh
+```
