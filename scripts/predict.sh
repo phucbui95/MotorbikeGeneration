@@ -10,4 +10,4 @@ cd $APP_PATH || echo "APP_PATH not found"
 "$SCRIPT_PATH" $CONFIG_FILE $MODEL
 
 echo "Copying file to output directory"
-cp $APP_PATH/outputs/images.zip /result/images.zip
+mv $APP_PATH/outputs/output_images /result/
