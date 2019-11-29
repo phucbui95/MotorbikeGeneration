@@ -27,8 +27,9 @@ def evaluation(submission_file):
         img_paths= glob(submission_file)
         img_paths = [os.path.join(submission_file, f) for f in img_paths]
 
-    mifid = MIFID(model_path='./client/motorbike_classification_inception_net_128_v4_e36.pb', 
-      public_feature_path='./client/public_feature.npz')
+    mifid = MIFID(
+        model_path='./client/motorbike_classification_inception_net_128_v4_e36.pb',
+        public_feature_path='./client/public_feature.npz')
     
     img_np = np.empty((len(img_paths), 128, 128, 3), dtype=np.uint8)
     for idx, path in tqdm_notebook(enumerate(img_paths), total=len(img_paths)):

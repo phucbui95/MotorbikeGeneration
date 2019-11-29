@@ -76,7 +76,7 @@ def post_preprocessing():
     score = pd.DataFrame({'path': img_paths,
                           'score': np.concatenate(score_list, axis=0).reshape(
                               -1)})
-    high_quality = score[score['score'] >= score['score'].quantile(0.1)]
+    high_quality = score[score['score'] >= score['score'].quantile(0.125)]
     img_path = high_quality['path'].values
     np.random.shuffle(img_path)
     img_path = img_path[:10000]
@@ -119,7 +119,7 @@ def submission_generate_images(netG,
 
         for i_image in range(gen_images.size(0)):
             out_path = os.path.join(f'outputs/intermediate_images', f'{output_i}.png')
-            out_img = (gen_images.numpy())[i_image, ::-1, :, :].copy()
+            out_img = (gen_images.numpy())[i_image, :, :, :].copy()
             save_image(torch.tensor(out_img), out_path)
             output_i += 1
             pbar.update(1)
