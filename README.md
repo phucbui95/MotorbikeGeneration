@@ -16,8 +16,8 @@ chmod +x scripts/*.sh
 
 ## Result images
 
-![Result](images/out.png "Result output")
-![Result](images/out_1.png "Result output")
+![Result](images/out.jpg "Result output")
+![Result](images/out_1.jpg "Result output")
 
 ## Failed cases
 
